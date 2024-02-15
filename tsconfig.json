@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist/",
+    "strict": true,
+    "noImplicitAny": true,
+    "module": "CommonJS",
+    "target": "ES2022",
+    "allowJs": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "baseUrl": ".",
+  "include": ["./src"]
+}
