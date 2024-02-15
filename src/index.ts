@@ -1,1 +1,3 @@
-console.log('asd');
+import { hello } from '@/modules';
+
+hello();
