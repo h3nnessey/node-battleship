@@ -1,0 +1,14 @@
+{
+  "name": "battleship",
+  "version": "1.0.0",
+  "description": "Battleship game",
+  "keywords": ["node", "typescript", "webpack", "battleship", "ws"],
+  "author": "h3nnessey",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
