@@ -14,11 +14,13 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "start:prod": "webpack && node ./dist/index.js",
-    "start:dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only ./src/index.ts",
-    "build": "webpack",
+    "start:client": "node ./client/index.js",
+    "start:ws:dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only ./src/index.ts",
+    "start:ws:prod": "webpack && node ./dist/index.js",
+    "install:all": "(cd ./client && npm install); && (cd .. && npm install);",
+    "lint": "eslint ./src/ --fix --report-unused-disable-directives --max-warnings 0",
     "prettier": "prettier ./src/ --write",
-    "lint": "eslint ./src/ --fix --report-unused-disable-directives --max-warnings 0"
+    "build": "webpack"
   },
   "devDependencies": {
     "@types/node": "^20.11.19",
@@ -38,6 +40,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "ws": "^8.16.0"
+    "ws": "^8.16.0",
+    "ws_task": "file:client"
   }
 }

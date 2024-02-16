@@ -6,5 +6,5 @@ module.exports = {
   extends: ['plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint/eslint-plugin'],
-  ignorePatterns: ['./dist', '.eslintrc.cjs', 'webpack.config.mjs'],
+  ignorePatterns: ['./dist', './client', '.eslintrc.cjs', 'webpack.config.mjs'],
 };
