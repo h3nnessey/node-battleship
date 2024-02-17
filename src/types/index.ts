@@ -1,4 +1,4 @@
-export enum WsMessageTypes {
+export enum MessageTypes {
   Reg = 'reg',
   UpdateWinners = 'update_winners',
   CreateRoom = 'create_room',
@@ -13,42 +13,6 @@ export enum WsMessageTypes {
   Finish = 'finish',
 }
 
-export enum WsControllerMethodNames {
-  RegisterUser = 'registerUser',
-  UpdateWinners = 'updateWinners',
-  CreateRoom = 'createRoom',
-  AddUserToRoom = 'addUserToRoom',
-  CreateGame = 'createGame',
-  UpdateRoom = 'updateRoom',
-  AddShips = 'addShips',
-  StartGame = 'startGame',
-  Attack = 'attack',
-  RandomAttack = 'randomAttack',
-  Turn = 'turn',
-  Finish = 'finish',
-}
-
-export interface WsControllerInterface {
-  [WsControllerMethodNames.RegisterUser](): void;
-  [WsControllerMethodNames.UpdateWinners](): void;
-  [WsControllerMethodNames.CreateRoom](): void;
-  [WsControllerMethodNames.AddUserToRoom](): void;
-  [WsControllerMethodNames.CreateGame](): void;
-  [WsControllerMethodNames.UpdateRoom](): void;
-  [WsControllerMethodNames.AddShips](): void;
-  [WsControllerMethodNames.StartGame](): void;
-  [WsControllerMethodNames.Attack](): void;
-  [WsControllerMethodNames.RandomAttack](): void;
-  [WsControllerMethodNames.Turn](): void;
-  [WsControllerMethodNames.Finish](): void;
-}
-
-export interface WsMessage<T extends WsMessageTypes, D> {
-  type: T;
-  data: D;
-  id: 0;
-}
-
 export interface RegisterUserRequestData {
   name: string;
   password: string;
@@ -60,8 +24,6 @@ export interface RegisterUserResponseData {
   error: boolean;
   errorText: string;
 }
-
-export type RegisterUserData = RegisterUserRequestData | RegisterUserResponseData;
 
 export interface WinnerData {
   name: string;
@@ -102,32 +64,79 @@ export interface FinishData {
   winPlayer: number;
 }
 
-// TODO: add AddShips & StartGame types
-export type WsMessages =
-  | WsMessage<WsMessageTypes.Reg, RegisterUserData>
-  | WsMessage<WsMessageTypes.UpdateWinners, WinnerData[]>
-  | WsMessage<WsMessageTypes.CreateRoom, string>
-  | WsMessage<WsMessageTypes.AddUserToRoom, AddUserToRoomData>
-  | WsMessage<WsMessageTypes.CreateGame, CreateGameData>
-  | WsMessage<WsMessageTypes.UpdateRoom, AvailableRoomData[]>
-  | WsMessage<WsMessageTypes.AddShips, number>
-  | WsMessage<WsMessageTypes.StartGame, number>
-  | WsMessage<WsMessageTypes.Attack, AttackData>
-  | WsMessage<WsMessageTypes.RandomAttack, RandomAttackData>
-  | WsMessage<WsMessageTypes.Turn, TurnData>
-  | WsMessage<WsMessageTypes.Finish, FinishData>;
+export interface AddShipsData {
+  gameId: number;
+  indexPlayer: number;
+}
 
-export const WsControllerMethodNamesMap = new Map<WsMessageTypes, WsControllerMethodNames>([
-  [WsMessageTypes.Reg, WsControllerMethodNames.RegisterUser],
-  [WsMessageTypes.UpdateWinners, WsControllerMethodNames.UpdateWinners],
-  [WsMessageTypes.CreateRoom, WsControllerMethodNames.CreateRoom],
-  [WsMessageTypes.AddUserToRoom, WsControllerMethodNames.AddUserToRoom],
-  [WsMessageTypes.CreateGame, WsControllerMethodNames.CreateGame],
-  [WsMessageTypes.UpdateRoom, WsControllerMethodNames.UpdateRoom],
-  [WsMessageTypes.AddShips, WsControllerMethodNames.AddShips],
-  [WsMessageTypes.StartGame, WsControllerMethodNames.StartGame],
-  [WsMessageTypes.Attack, WsControllerMethodNames.Attack],
-  [WsMessageTypes.RandomAttack, WsControllerMethodNames.RandomAttack],
-  [WsMessageTypes.Turn, WsControllerMethodNames.Turn],
-  [WsMessageTypes.Finish, WsControllerMethodNames.Finish],
-]);
+export interface StartGameData {
+  gameId: number;
+  indexPlayer: number;
+}
+
+export interface BaseMessage {
+  id: 0;
+}
+
+export interface RegisterUserRequestMessage extends BaseMessage {
+  type: MessageTypes.Reg;
+  data: RegisterUserRequestData;
+}
+
+export interface RegisterUserResponseMessage extends BaseMessage {
+  type: MessageTypes.Reg;
+  data: RegisterUserResponseData;
+}
+
+export interface UpdateWinnersMessage extends BaseMessage {
+  type: MessageTypes.UpdateWinners;
+  data: WinnerData[];
+}
+
+export interface UpdateRoomMessage extends BaseMessage {
+  type: MessageTypes.UpdateRoom;
+  data: AvailableRoomData[];
+}
+
+export interface CreateRoomMessage extends BaseMessage {
+  type: MessageTypes.CreateRoom;
+  data: string;
+}
+
+export interface AddUserToRoomMessage extends BaseMessage {
+  type: MessageTypes.AddUserToRoom;
+  data: AddUserToRoomData;
+}
+
+export interface CreateGameMessage extends BaseMessage {
+  type: MessageTypes.CreateGame;
+  data: CreateGameData;
+}
+
+export interface AddShipsMessage extends BaseMessage {
+  type: MessageTypes.AddShips;
+  data: AddShipsData;
+}
+
+export interface StartGameMessage extends BaseMessage {
+  type: MessageTypes.StartGame;
+  data: StartGameData;
+}
+
+export interface AttackMessage extends BaseMessage {
+  type: MessageTypes.Attack;
+  data: AttackData;
+}
+
+export interface RandomAttackMessage extends BaseMessage {
+  type: MessageTypes.RandomAttack;
+  data: RandomAttackData;
+}
+
+export type RequestMessages =
+  | RegisterUserRequestMessage
+  | CreateRoomMessage
+  | AddUserToRoomMessage
+  | AttackMessage
+  | RandomAttackMessage
+  | AddShipsMessage;

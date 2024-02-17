@@ -1,1 +1,1 @@
-export { WsController } from './WsController';
+export { WebSocketController } from './WebSocketController';
