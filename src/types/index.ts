@@ -13,7 +13,7 @@ export enum WsMessageTypes {
   Finish = 'finish',
 }
 
-export enum WsControllerMethods {
+export enum WsControllerMethodNames {
   RegisterUser = 'registerUser',
   UpdateWinners = 'updateWinners',
   CreateRoom = 'createRoom',
@@ -29,31 +29,105 @@ export enum WsControllerMethods {
 }
 
 export interface WsControllerInterface {
-  [WsControllerMethods.RegisterUser](): void;
-  [WsControllerMethods.UpdateWinners](): void;
-  [WsControllerMethods.CreateRoom](): void;
-  [WsControllerMethods.AddUserToRoom](): void;
-  [WsControllerMethods.CreateGame](): void;
-  [WsControllerMethods.UpdateRoom](): void;
-  [WsControllerMethods.AddShips](): void;
-  [WsControllerMethods.StartGame](): void;
-  [WsControllerMethods.Attack](): void;
-  [WsControllerMethods.RandomAttack](): void;
-  [WsControllerMethods.Turn](): void;
-  [WsControllerMethods.Finish](): void;
+  [WsControllerMethodNames.RegisterUser](): void;
+  [WsControllerMethodNames.UpdateWinners](): void;
+  [WsControllerMethodNames.CreateRoom](): void;
+  [WsControllerMethodNames.AddUserToRoom](): void;
+  [WsControllerMethodNames.CreateGame](): void;
+  [WsControllerMethodNames.UpdateRoom](): void;
+  [WsControllerMethodNames.AddShips](): void;
+  [WsControllerMethodNames.StartGame](): void;
+  [WsControllerMethodNames.Attack](): void;
+  [WsControllerMethodNames.RandomAttack](): void;
+  [WsControllerMethodNames.Turn](): void;
+  [WsControllerMethodNames.Finish](): void;
 }
 
-export const WsControllerMethodsMap = new Map<WsMessageTypes, WsControllerMethods>([
-  [WsMessageTypes.Reg, WsControllerMethods.RegisterUser],
-  [WsMessageTypes.UpdateWinners, WsControllerMethods.UpdateWinners],
-  [WsMessageTypes.CreateRoom, WsControllerMethods.CreateRoom],
-  [WsMessageTypes.AddUserToRoom, WsControllerMethods.AddUserToRoom],
-  [WsMessageTypes.CreateGame, WsControllerMethods.CreateGame],
-  [WsMessageTypes.UpdateRoom, WsControllerMethods.UpdateRoom],
-  [WsMessageTypes.AddShips, WsControllerMethods.AddShips],
-  [WsMessageTypes.StartGame, WsControllerMethods.StartGame],
-  [WsMessageTypes.Attack, WsControllerMethods.Attack],
-  [WsMessageTypes.RandomAttack, WsControllerMethods.RandomAttack],
-  [WsMessageTypes.Turn, WsControllerMethods.Turn],
-  [WsMessageTypes.Finish, WsControllerMethods.Finish],
+export interface WsMessage<T extends WsMessageTypes, D> {
+  type: T;
+  data: D;
+  id: 0;
+}
+
+export interface RegisterUserRequestData {
+  name: string;
+  password: string;
+}
+
+export interface RegisterUserResponseData {
+  name: string;
+  index: number;
+  error: boolean;
+  errorText: string;
+}
+
+export type RegisterUserData = RegisterUserRequestData | RegisterUserResponseData;
+
+export interface WinnerData {
+  name: string;
+  wins: number;
+}
+
+export interface AvailableRoomData {
+  roomId: number;
+  roomUsers: Pick<RegisterUserResponseData, 'name' | 'index'>[];
+}
+
+export interface AddUserToRoomData {
+  indexRoom: number;
+}
+
+export interface CreateGameData {
+  idGame: number;
+  idPlayer: number;
+}
+
+export interface AttackData {
+  gameId: number;
+  indexPlayer: number;
+  x: number;
+  y: number;
+}
+
+export interface RandomAttackData {
+  gameId: number;
+  indexPlayer: number;
+}
+
+export interface TurnData {
+  currentPlayer: number;
+}
+
+export interface FinishData {
+  winPlayer: number;
+}
+
+// TODO: add AddShips & StartGame types
+export type WsMessages =
+  | WsMessage<WsMessageTypes.Reg, RegisterUserData>
+  | WsMessage<WsMessageTypes.UpdateWinners, WinnerData[]>
+  | WsMessage<WsMessageTypes.CreateRoom, string>
+  | WsMessage<WsMessageTypes.AddUserToRoom, AddUserToRoomData>
+  | WsMessage<WsMessageTypes.CreateGame, CreateGameData>
+  | WsMessage<WsMessageTypes.UpdateRoom, AvailableRoomData[]>
+  | WsMessage<WsMessageTypes.AddShips, number>
+  | WsMessage<WsMessageTypes.StartGame, number>
+  | WsMessage<WsMessageTypes.Attack, AttackData>
+  | WsMessage<WsMessageTypes.RandomAttack, RandomAttackData>
+  | WsMessage<WsMessageTypes.Turn, TurnData>
+  | WsMessage<WsMessageTypes.Finish, FinishData>;
+
+export const WsControllerMethodNamesMap = new Map<WsMessageTypes, WsControllerMethodNames>([
+  [WsMessageTypes.Reg, WsControllerMethodNames.RegisterUser],
+  [WsMessageTypes.UpdateWinners, WsControllerMethodNames.UpdateWinners],
+  [WsMessageTypes.CreateRoom, WsControllerMethodNames.CreateRoom],
+  [WsMessageTypes.AddUserToRoom, WsControllerMethodNames.AddUserToRoom],
+  [WsMessageTypes.CreateGame, WsControllerMethodNames.CreateGame],
+  [WsMessageTypes.UpdateRoom, WsControllerMethodNames.UpdateRoom],
+  [WsMessageTypes.AddShips, WsControllerMethodNames.AddShips],
+  [WsMessageTypes.StartGame, WsControllerMethodNames.StartGame],
+  [WsMessageTypes.Attack, WsControllerMethodNames.Attack],
+  [WsMessageTypes.RandomAttack, WsControllerMethodNames.RandomAttack],
+  [WsMessageTypes.Turn, WsControllerMethodNames.Turn],
+  [WsMessageTypes.Finish, WsControllerMethodNames.Finish],
 ]);

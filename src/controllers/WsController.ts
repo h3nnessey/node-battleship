@@ -1,4 +1,9 @@
-import { WsMessageTypes, WsControllerInterface, WsControllerMethodsMap } from '@/types';
+import {
+  WsMessageTypes,
+  WsControllerInterface,
+  WsControllerMethodNamesMap,
+  WsMessages,
+} from '@/types';
 
 export class WsController implements WsControllerInterface {
   registerUser() {
@@ -29,9 +34,9 @@ export class WsController implements WsControllerInterface {
   finish() {}
 
   // message: { type, data, id }
-  exec(type: string) {
+  exec(message: string) {
     try {
-      // const { type, data, id } = this._parseMessage(message);
+      const { type, data, id } = this._parseMessage(message);
 
       const method = this._getMethod(type);
 
@@ -41,12 +46,12 @@ export class WsController implements WsControllerInterface {
     }
   }
 
-  private _parseMessage(message: string) {
-    return JSON.parse(message);
+  private _parseMessage(message: string): WsMessages {
+    return JSON.parse(message) as WsMessages;
   }
 
   private _getMethod(type: string) {
-    const method = WsControllerMethodsMap.get(type as WsMessageTypes);
+    const method = WsControllerMethodNamesMap.get(type as WsMessageTypes);
 
     if (!method) {
       throw new Error('Invalid message type');
