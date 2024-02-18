@@ -140,3 +140,9 @@ export type RequestMessages =
   | AttackMessage
   | RandomAttackMessage
   | AddShipsMessage;
+
+export interface User {
+  name: string;
+  password: string;
+  index: number;
+}

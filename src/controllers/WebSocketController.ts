@@ -14,14 +14,14 @@ export class WebSocketController {
   private readonly _userService = new UserService();
 
   private async _registerUser(ws: WebSocket, data: RegisterUserRequestData) {
-    const result = await this._userService.registerUser({
-      name: data.name,
-      password: data.password,
-    });
+    const result = await this._userService.registerUser(data);
 
     sendMessageToWebSocket(ws, MessageTypes.Reg, result);
-    await this._updateRoom(ws);
-    await this._updateWinners(ws);
+
+    if (!result.error) {
+      await this._updateRoom(ws);
+      await this._updateWinners(ws);
+    }
   }
 
   private async _updateWinners(ws: WebSocket) {

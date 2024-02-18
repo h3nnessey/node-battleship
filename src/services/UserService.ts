@@ -1,17 +1,63 @@
-import { RegisterUserRequestData, RegisterUserResponseData } from '@/types';
+import { RegisterUserRequestData, RegisterUserResponseData, User } from '@/types';
 
 export class UserService {
-  private readonly _users: { name: string; password: string; index: number }[] = [];
+  private readonly _users: User[] = [];
   private currentIndex = 0;
 
-  async registerUser(data: RegisterUserRequestData): Promise<RegisterUserResponseData> {
-    this.currentIndex += 1;
+  public async registerUser({
+    name,
+    password,
+  }: RegisterUserRequestData): Promise<RegisterUserResponseData> {
+    try {
+      const userIndex = this._getUserIndex({ name, password });
 
-    this._users.push({ ...data, index: this.currentIndex });
+      if (userIndex !== null) {
+        return this._loginUser(userIndex);
+      }
+
+      return this._addUser({ name, password });
+    } catch (error) {
+      return {
+        name: name,
+        index: this.currentIndex,
+        error: true,
+        errorText: error instanceof Error ? error.message : 'Invalid Credentials',
+      };
+    }
+  }
+
+  private _getUserIndex({ name, password }: RegisterUserRequestData): number | null {
+    const userIndex = this._users.findIndex((user) => user.name === name);
+    const isValidPassword = userIndex !== -1 && this._users[userIndex].password === password;
+
+    if (userIndex === -1) return null;
+
+    if (!isValidPassword) {
+      throw new Error('Invalid Password');
+    }
+
+    return userIndex;
+  }
+
+  private _addUser({ name, password }: RegisterUserRequestData): RegisterUserResponseData {
+    const newUser = { name, password, index: this.currentIndex++ };
+
+    this._users.push(newUser);
 
     return {
-      name: data.name,
-      index: this.currentIndex,
+      name: name,
+      index: newUser.index,
+      error: false,
+      errorText: '',
+    };
+  }
+
+  private _loginUser(index: number): RegisterUserResponseData {
+    const user = this._users[index];
+
+    return {
+      name: user.name,
+      index: user.index,
       error: false,
       errorText: '',
     };
