@@ -9,16 +9,28 @@ export class WebSocketService {
     this._sockets.set(ws, undefined);
   }
 
-  public linkSocketWithUser(ws: WebSocket, user: UserPublicData): void {
+  public link(ws: WebSocket, user: UserPublicData): void {
     this._sockets.set(ws, user);
+  }
+
+  public unlink(ws: WebSocket): void {
+    this._sockets.delete(ws);
   }
 
   public getLinkedUser(ws: WebSocket): UserPublicData | undefined {
     return this._sockets.get(ws);
   }
 
+  public getLinkedSocket(name: string): WebSocket | undefined {
+    return this.getAllSockets().find((ws) => this.getLinkedUser(ws)?.name === name);
+  }
+
   public getAllSockets(): WebSocket[] {
     return Array.from(this._sockets.keys());
+  }
+
+  public isUserOnline(name: string): boolean {
+    return this.getAllSockets().some((ws) => this.getLinkedUser(ws)?.name === name);
   }
 
   public notifyAll(type: string, data: unknown): void {

@@ -9,7 +9,7 @@ wss.on('listening', () => {
 });
 
 wss.on('connection', (ws) => {
-  controller.registerSocket(ws);
+  controller.onConnection(ws);
 
   ws.on('message', async (message) => {
     await controller.processMessage(ws, message.toString());
@@ -17,5 +17,9 @@ wss.on('connection', (ws) => {
 
   ws.on('error', (error) => {
     console.log(error);
+  });
+
+  ws.on('close', (code, reason) => {
+    controller.onClose(ws, code, reason.toString().trim());
   });
 });
