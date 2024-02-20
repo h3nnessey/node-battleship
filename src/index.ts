@@ -9,11 +9,13 @@ wss.on('listening', () => {
 });
 
 wss.on('connection', (ws) => {
-  ws.on('error', (error) => {
-    console.log(error);
-  });
+  controller.registerSocket(ws);
 
   ws.on('message', async (message) => {
     await controller.processMessage(ws, message.toString());
+  });
+
+  ws.on('error', (error) => {
+    console.log(error);
   });
 });

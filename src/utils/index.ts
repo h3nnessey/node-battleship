@@ -1,1 +1,1 @@
-export { sendMessageToWebSocket } from './sendMessageToWebSocket';
+export { getSerializer } from './getSerializer';

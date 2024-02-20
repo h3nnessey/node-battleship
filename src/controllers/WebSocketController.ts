@@ -1,44 +1,65 @@
 import type { WebSocket } from 'ws';
-import { RegisterUserRequestData, RequestMessages, MessageTypes } from '@/types';
-import { UserService } from '@/services';
-import { sendMessageToWebSocket } from '@/utils';
-
-interface Room {
-  roomId: number;
-  roomUsers: { name: string; index: number }[];
-}
-
-const rooms: Room[] = [];
+import { RegisterUserRequestData, RequestMessages, MessageTypes, AddUserToRoomData } from '@/types';
+import { RoomService, UserService, WinnerService, WebSocketService } from '@/services';
 
 export class WebSocketController {
   private readonly _userService = new UserService();
+  private readonly _roomService = new RoomService();
+  private readonly _winnerService = new WinnerService();
+  private readonly _webSocketService = new WebSocketService();
 
   private async _registerUser(ws: WebSocket, data: RegisterUserRequestData) {
     const result = await this._userService.registerUser(data);
 
-    sendMessageToWebSocket(ws, MessageTypes.Reg, result);
+    this._webSocketService.notify(ws, MessageTypes.Reg, result);
 
     if (!result.error) {
-      await this._updateRoom(ws);
-      await this._updateWinners(ws);
+      this._webSocketService.linkSocketWithUser(ws, {
+        name: result.name,
+        index: result.index,
+      });
+
+      await this._updateRoom();
+      await this._updateWinners();
     }
   }
 
-  private async _updateWinners(ws: WebSocket) {
-    sendMessageToWebSocket(ws, MessageTypes.UpdateWinners, []);
+  private async _updateWinners() {
+    const result = await this._winnerService.getWinners();
+
+    this._webSocketService.notifyAll(MessageTypes.UpdateWinners, result);
   }
 
-  private async _updateRoom(ws: WebSocket) {
-    sendMessageToWebSocket(ws, MessageTypes.UpdateRoom, []);
+  private async _updateRoom() {
+    const result = await this._roomService.getRooms();
+
+    this._webSocketService.notifyAll(MessageTypes.UpdateRoom, result);
   }
 
   private async _createRoom(ws: WebSocket) {
-    const room = { roomId: Date.now(), roomUsers: [{ name: 'qweqwe', index: 1 }] };
-    rooms.push(room);
-    sendMessageToWebSocket(ws, MessageTypes.UpdateRoom, rooms);
+    const user = this._webSocketService.getLinkedUser(ws);
+
+    if (user) {
+      await this._roomService.createRoom(user);
+
+      await this._updateRoom();
+    }
   }
 
-  private async _addUserToRoom(ws: WebSocket) {}
+  // <--    add_user_to_room
+  // <--    update_room    -->
+  // <--    create_game    -->
+
+  private async _addUserToRoom(ws: WebSocket, data: AddUserToRoomData) {
+    const user = this._webSocketService.getLinkedUser(ws);
+
+    if (user) {
+      await this._roomService.addUserToRoom(user, data.indexRoom);
+
+      await this._updateRoom();
+      await this._createGame(ws);
+    }
+  }
 
   private async _createGame(ws: WebSocket) {}
 
@@ -66,6 +87,10 @@ export class WebSocketController {
     }
   }
 
+  public registerSocket(ws: WebSocket) {
+    this._webSocketService.addSocket(ws);
+  }
+
   private _getMethodFromMessage(ws: WebSocket, message: string) {
     const { type, data } = this._parseMessage(message);
 
@@ -77,7 +102,7 @@ export class WebSocketController {
         return this._createRoom.bind(this, ws);
       }
       case MessageTypes.AddUserToRoom: {
-        return this._addUserToRoom.bind(this, ws);
+        return this._addUserToRoom.bind(this, ws, data);
       }
       case MessageTypes.AddShips: {
         return this._addShips.bind(this, ws);

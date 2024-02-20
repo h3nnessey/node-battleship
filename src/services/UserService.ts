@@ -2,7 +2,7 @@ import { RegisterUserRequestData, RegisterUserResponseData, User } from '@/types
 
 export class UserService {
   private readonly _users: User[] = [];
-  private currentIndex = 0;
+  private _currentIndex = 0;
 
   public async registerUser({
     name,
@@ -19,7 +19,7 @@ export class UserService {
     } catch (error) {
       return {
         name: name,
-        index: this.currentIndex,
+        index: this._currentIndex,
         error: true,
         errorText: error instanceof Error ? error.message : 'Invalid Credentials',
       };
@@ -40,7 +40,7 @@ export class UserService {
   }
 
   private _addUser({ name, password }: RegisterUserRequestData): RegisterUserResponseData {
-    const newUser = { name, password, index: this.currentIndex++ };
+    const newUser = { name, password, index: this._currentIndex++ };
 
     this._users.push(newUser);
 

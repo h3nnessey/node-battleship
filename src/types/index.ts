@@ -25,14 +25,14 @@ export interface RegisterUserResponseData {
   errorText: string;
 }
 
-export interface WinnerData {
+export interface Winner {
   name: string;
   wins: number;
 }
 
-export interface AvailableRoomData {
+export interface Room {
   roomId: number;
-  roomUsers: Pick<RegisterUserResponseData, 'name' | 'index'>[];
+  roomUsers: UserPublicData[];
 }
 
 export interface AddUserToRoomData {
@@ -90,12 +90,12 @@ export interface RegisterUserResponseMessage extends BaseMessage {
 
 export interface UpdateWinnersMessage extends BaseMessage {
   type: MessageTypes.UpdateWinners;
-  data: WinnerData[];
+  data: Winner[];
 }
 
 export interface UpdateRoomMessage extends BaseMessage {
   type: MessageTypes.UpdateRoom;
-  data: AvailableRoomData[];
+  data: Room[];
 }
 
 export interface CreateRoomMessage extends BaseMessage {
@@ -141,8 +141,11 @@ export type RequestMessages =
   | RandomAttackMessage
   | AddShipsMessage;
 
-export interface User {
+export interface UserPublicData {
   name: string;
-  password: string;
   index: number;
+}
+
+export interface User extends UserPublicData {
+  password: string;
 }
