@@ -21,8 +21,12 @@ export class WebSocketService {
     return this._sockets.get(ws);
   }
 
-  public getLinkedSocket(name: string): WebSocket | undefined {
+  public getLinkedSocketByName(name: string): WebSocket | undefined {
     return this.getAllSockets().find((ws) => this.getLinkedUser(ws)?.name === name);
+  }
+
+  public getLinkedSocketByIndex(index: number): WebSocket | undefined {
+    return this.getAllSockets().find((ws) => this.getLinkedUser(ws)?.index === index);
   }
 
   public getAllSockets(): WebSocket[] {

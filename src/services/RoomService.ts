@@ -22,6 +22,9 @@ export class RoomService {
     const room = this._rooms.find((room) => room.roomId === roomId);
 
     if (room) {
+      if (room.roomUsers.some((u) => u.name === user.name)) {
+        throw new Error('cannot join room twice');
+      }
       room.roomUsers.push(user);
       this._rooms = this._rooms.filter((room) => roomId !== room.roomId);
       return room;

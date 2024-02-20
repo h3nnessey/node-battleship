@@ -5,6 +5,7 @@ import {
   MessageTypes,
   AddUserToRoomData,
   Room,
+  AddShipsData,
 } from '@/types';
 import { RoomService, UserService, WinnerService, WebSocketService, GameService } from '@/services';
 
@@ -83,8 +84,8 @@ export class WebSocketController {
       const user2 = room.roomUsers.at(1);
 
       if (gameData && user1 && user2) {
-        const user1Socket = this._webSocketService.getLinkedSocket(user1.name || '');
-        const user2Socket = this._webSocketService.getLinkedSocket(user2.name || '');
+        const user1Socket = this._webSocketService.getLinkedSocketByName(user1.name || '');
+        const user2Socket = this._webSocketService.getLinkedSocketByName(user2.name || '');
 
         const isReadyToNotify = user1Socket && user2Socket;
 
@@ -96,9 +97,42 @@ export class WebSocketController {
     }
   }
 
-  private async _addShips(ws: WebSocket) {}
+  private async _addShips(ws: WebSocket, data: AddShipsData) {
+    const addShipsResult = await this._gameService.addShips(data);
 
-  private async _startGame(ws: WebSocket) {}
+    if (addShipsResult?.isGameReady) {
+      const userIndex1 = addShipsResult.playersIndex.at(0);
+      const userIndex2 = addShipsResult.playersIndex.at(1);
+
+      if (userIndex1 !== undefined && userIndex2 !== undefined) {
+        const user1Socket = this._webSocketService.getLinkedSocketByIndex(userIndex1);
+        const user2Socket = this._webSocketService.getLinkedSocketByIndex(userIndex2);
+
+        const startGameResult = await this._startGame(data.gameId);
+
+        if (user1Socket && user2Socket && startGameResult) {
+          this._webSocketService.notify(
+            user1Socket,
+            MessageTypes.StartGame,
+            startGameResult.player1,
+          );
+          this._webSocketService.notify(
+            user2Socket,
+            MessageTypes.StartGame,
+            startGameResult.player2,
+          );
+        }
+      }
+    }
+  }
+
+  private async _startGame(gameId: number) {
+    const result = await this._gameService.startGame(gameId);
+
+    if (result) {
+      return result;
+    }
+  }
 
   private async _attack(ws: WebSocket) {}
 
@@ -148,7 +182,7 @@ export class WebSocketController {
         return this._addUserToRoom.bind(this, ws, data);
       }
       case MessageTypes.AddShips: {
-        return this._addShips.bind(this, ws);
+        return this._addShips.bind(this, ws, data);
       }
       case MessageTypes.Attack: {
         return this._attack.bind(this, ws);

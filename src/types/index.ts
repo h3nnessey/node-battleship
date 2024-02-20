@@ -66,8 +66,34 @@ export interface FinishData {
 
 export interface AddShipsData {
   gameId: number;
+  ships: Ship[];
   indexPlayer: number;
 }
+
+export interface Player {
+  indexPlayer: number;
+  ships: Ship[];
+}
+
+export interface Game {
+  gameId: number;
+  started: boolean;
+  players: [Player, Player];
+}
+
+export interface PlayerInGame {
+  currentPlayerIndex: number;
+  ships: Ship[];
+}
+
+export interface StartGameResult {
+  player1: PlayerInGame;
+  player2: PlayerInGame;
+}
+
+export type AddShipsResult =
+  | { isGameReady: false }
+  | { isGameReady: true; playersIndex: [number, number] };
 
 export interface StartGameData {
   gameId: number;
@@ -148,4 +174,21 @@ export interface UserPublicData {
 
 export interface User extends UserPublicData {
   password: string;
+}
+
+export enum ShipTypes {
+  Small = 'small',
+  Medium = 'medium',
+  Large = 'large',
+  Huge = 'huge',
+}
+
+export interface Ship {
+  position: {
+    x: number;
+    y: number;
+  };
+  direction: boolean;
+  length: number;
+  type: ShipTypes;
 }
