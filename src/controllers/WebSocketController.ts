@@ -9,6 +9,7 @@ import {
 } from '@/types';
 import { RoomService, UserService, WinnerService, WebSocketService, GameService } from '@/services';
 
+// TODO: make all functions async
 export class WebSocketController {
   private readonly _userService = new UserService();
   private readonly _roomService = new RoomService();
@@ -16,24 +17,16 @@ export class WebSocketController {
   private readonly _webSocketService = new WebSocketService();
   private readonly _gameService = new GameService();
 
-  private async _registerUser(ws: WebSocket, { name, password }: RegisterUserRequestData) {
-    const isUserOnline = this._webSocketService.isUserOnline(name);
-
-    if (isUserOnline) {
-      return this._webSocketService.notify(ws, MessageTypes.Reg, {
-        name,
-        index: 0,
-        error: true,
-        errorText: `User with name: ${name} is already online`,
-      });
-    }
-
+  private async _registerUser(
+    ws: WebSocket,
+    { name, password }: RegisterUserRequestData,
+  ): Promise<void> {
     const result = await this._userService.registerUser({ name, password });
 
-    this._webSocketService.notify(ws, MessageTypes.Reg, result);
+    await this._webSocketService.notify([[ws, MessageTypes.Reg, result]]);
 
     if (!result.error) {
-      this._webSocketService.link(ws, {
+      await this._webSocketService.link(ws, {
         name: result.name,
         index: result.index,
       });
@@ -43,133 +36,139 @@ export class WebSocketController {
     }
   }
 
-  private async _updateWinners() {
+  private async _updateWinners(): Promise<void> {
     const result = await this._winnerService.getWinners();
 
-    this._webSocketService.notifyAll(MessageTypes.UpdateWinners, result);
+    await this._webSocketService.notifyAll(MessageTypes.UpdateWinners, result);
   }
 
-  private async _updateRoom() {
+  private async _updateRoom(): Promise<void> {
     const result = await this._roomService.getRooms();
 
-    this._webSocketService.notifyAll(MessageTypes.UpdateRoom, result);
+    await this._webSocketService.notifyAll(MessageTypes.UpdateRoom, result);
   }
 
-  private async _createRoom(ws: WebSocket) {
-    const user = this._webSocketService.getLinkedUser(ws);
+  private async _createRoom(ws: WebSocket): Promise<void> {
+    const user = await this._webSocketService.getLinkedUser(ws);
 
-    if (user) {
-      await this._roomService.createRoom(user);
+    await this._roomService.createRoom(user);
+    await this._updateRoom();
+  }
 
-      await this._updateRoom();
+  private async _addUserToRoom(ws: WebSocket, data: AddUserToRoomData): Promise<void> {
+    const user = await this._webSocketService.getLinkedUser(ws);
+    const room = await this._roomService.addUserToRoom(data.indexRoom, user);
+
+    await this._updateRoom();
+    await this._createGame(room);
+  }
+
+  private async _createGame(room: Room): Promise<void> {
+    const [playerData1, playerData2] = await this._gameService.createGame(room);
+    const playerWs1 = await this._webSocketService.getLinkedSocketByIndex(playerData1.idPlayer);
+    const playerWs2 = await this._webSocketService.getLinkedSocketByIndex(playerData2.idPlayer);
+
+    await this._webSocketService.notify([
+      [playerWs1, MessageTypes.CreateGame, playerData1],
+      [playerWs2, MessageTypes.CreateGame, playerData2],
+    ]);
+  }
+
+  private async _addShips(data: AddShipsData): Promise<void> {
+    const result = await this._gameService.addShips(data);
+
+    if (result.isGameReady) {
+      const {
+        playersIndex: [playerIndex1, playerIndex2],
+      } = result;
+
+      await this._startGame(playerIndex1, playerIndex2, data.gameId);
     }
   }
 
-  private async _addUserToRoom(ws: WebSocket, data: AddUserToRoomData) {
-    const user = this._webSocketService.getLinkedUser(ws);
+  private async _startGame(
+    playerIndex1: number,
+    playerIndex2: number,
+    gameId: number,
+  ): Promise<void> {
+    const [player1, player2] = await this._gameService.startGame(gameId);
 
-    if (user) {
-      const room = await this._roomService.addUserToRoom(user, data.indexRoom);
+    const playerWs1 = await this._webSocketService.getLinkedSocketByIndex(playerIndex1);
+    const playerWs2 = await this._webSocketService.getLinkedSocketByIndex(playerIndex2);
 
-      await this._updateRoom();
-      await this._createGame(room);
-    }
+    await this._webSocketService.notify([
+      [playerWs1, MessageTypes.StartGame, player1],
+      [playerWs2, MessageTypes.StartGame, player2],
+    ]);
+
+    await this._turn(playerWs1, playerWs2, player1.currentPlayerIndex);
   }
 
-  private async _createGame(room?: Room) {
-    if (room) {
-      const gameData = await this._gameService.createGame(room);
-
-      const user1 = room.roomUsers.at(0);
-      const user2 = room.roomUsers.at(1);
-
-      if (gameData && user1 && user2) {
-        const user1Socket = this._webSocketService.getLinkedSocketByName(user1.name || '');
-        const user2Socket = this._webSocketService.getLinkedSocketByName(user2.name || '');
-
-        const isReadyToNotify = user1Socket && user2Socket;
-
-        if (isReadyToNotify) {
-          this._webSocketService.notify(user1Socket, MessageTypes.CreateGame, gameData.at(0));
-          this._webSocketService.notify(user2Socket, MessageTypes.CreateGame, gameData.at(1));
-        }
-      }
-    }
-  }
-
-  private async _addShips(ws: WebSocket, data: AddShipsData) {
-    const addShipsResult = await this._gameService.addShips(data);
-
-    if (addShipsResult?.isGameReady) {
-      const userIndex1 = addShipsResult.playersIndex.at(0);
-      const userIndex2 = addShipsResult.playersIndex.at(1);
-
-      if (userIndex1 !== undefined && userIndex2 !== undefined) {
-        const user1Socket = this._webSocketService.getLinkedSocketByIndex(userIndex1);
-        const user2Socket = this._webSocketService.getLinkedSocketByIndex(userIndex2);
-
-        const startGameResult = await this._startGame(data.gameId);
-
-        if (user1Socket && user2Socket && startGameResult) {
-          this._webSocketService.notify(
-            user1Socket,
-            MessageTypes.StartGame,
-            startGameResult.player1,
-          );
-          this._webSocketService.notify(
-            user2Socket,
-            MessageTypes.StartGame,
-            startGameResult.player2,
-          );
-        }
-      }
-    }
-  }
-
-  private async _startGame(gameId: number) {
-    const result = await this._gameService.startGame(gameId);
-
-    if (result) {
-      return result;
-    }
+  private async _turn(
+    playerWs1: WebSocket,
+    playerWs2: WebSocket,
+    currentPlayer: number,
+  ): Promise<void> {
+    await this._webSocketService.notify([
+      [
+        playerWs1,
+        MessageTypes.Turn,
+        {
+          currentPlayer,
+        },
+      ],
+      [
+        playerWs2,
+        MessageTypes.Turn,
+        {
+          currentPlayer,
+        },
+      ],
+    ]);
   }
 
   private async _attack(ws: WebSocket) {}
 
   private async _randomAttack(ws: WebSocket) {}
 
-  private async _turn(ws: WebSocket) {}
-
   private async _finish(ws: WebSocket) {}
 
-  async processMessage(ws: WebSocket, message: string) {
+  public async processMessage(ws: WebSocket, message: string): Promise<void> {
     try {
-      const method = this._getMethodFromMessage(ws, message);
+      const method = await this._getMethodFromMessage(ws, message);
 
       if (method) {
         await method();
       }
     } catch (error) {
-      console.log(error);
+      console.log(error instanceof Error ? error.message : 'error');
     }
   }
 
-  public onConnection(ws: WebSocket) {
-    this._webSocketService.addSocket(ws);
+  public async onConnection(ws: WebSocket): Promise<void> {
+    await this._webSocketService.addSocket(ws);
   }
 
-  public onClose(ws: WebSocket, code: number, reason: string) {
-    const user = this._webSocketService.getLinkedUser(ws);
+  public async onClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+    try {
+      const user = await this._webSocketService.getLinkedUser(ws);
 
-    this._webSocketService.unlink(ws);
+      await this._webSocketService.unlink(ws);
+      await this._roomService.deleteUserRoom(user.name);
+      await this._updateRoom();
 
-    console.log(
-      `Connection${user ? ` of ${user.name}` : ''} closed with code ${code}${reason.length ? ` and reason ${reason}` : ''}`,
-    );
+      console.log(
+        `Connection of ${user.name} closed with code ${code}${reason.length ? ` and reason ${reason}` : ''}`,
+      );
+    } catch {
+      console.log(
+        `Connection closed with code ${code}${reason.length ? ` and reason ${reason}` : ''}`,
+      );
+    }
   }
 
-  private _getMethodFromMessage(ws: WebSocket, message: string) {
-    const { type, data } = this._parseMessage(message);
+  private async _getMethodFromMessage(ws: WebSocket, message: string) {
+    const { type, data } = await this._parseMessage(message);
 
     switch (type) {
       case MessageTypes.Reg: {
@@ -182,7 +181,7 @@ export class WebSocketController {
         return this._addUserToRoom.bind(this, ws, data);
       }
       case MessageTypes.AddShips: {
-        return this._addShips.bind(this, ws, data);
+        return this._addShips.bind(this, data);
       }
       case MessageTypes.Attack: {
         return this._attack.bind(this, ws);
@@ -195,7 +194,7 @@ export class WebSocketController {
     }
   }
 
-  private _parseMessage(message: string): RequestMessages {
+  private async _parseMessage(message: string): Promise<RequestMessages> {
     const json = JSON.parse(message);
     const data =
       typeof json.data === 'string' && json.data.length > 0 ? JSON.parse(json.data) : json.data;

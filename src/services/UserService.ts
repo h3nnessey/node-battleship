@@ -1,15 +1,17 @@
+import { WebSocketService } from '@/services';
 import { RegisterUserRequestData, RegisterUserResponseData, User } from '@/types';
 
 export class UserService {
+  private readonly _websocketService = new WebSocketService();
   private readonly _users: User[] = [];
-  private _currentIndex = 0;
+  private _currentIndex = 1;
 
   public async registerUser({
     name,
     password,
   }: RegisterUserRequestData): Promise<RegisterUserResponseData> {
     try {
-      const userIndex = this._getUserIndex({ name, password });
+      const userIndex = await this._getUserIndex({ name, password });
 
       if (userIndex !== null) {
         return this._loginUser(userIndex);
@@ -26,7 +28,7 @@ export class UserService {
     }
   }
 
-  private _getUserIndex({ name, password }: RegisterUserRequestData): number | null {
+  private async _getUserIndex({ name, password }: RegisterUserRequestData): Promise<number | null> {
     const userIndex = this._users.findIndex((user) => user.name === name);
     const isValidPassword = userIndex !== -1 && this._users[userIndex].password === password;
 
@@ -39,7 +41,10 @@ export class UserService {
     return userIndex;
   }
 
-  private _addUser({ name, password }: RegisterUserRequestData): RegisterUserResponseData {
+  private async _addUser({
+    name,
+    password,
+  }: RegisterUserRequestData): Promise<RegisterUserResponseData> {
     const newUser = { name, password, index: this._currentIndex++ };
 
     this._users.push(newUser);
@@ -52,14 +57,24 @@ export class UserService {
     };
   }
 
-  private _loginUser(index: number): RegisterUserResponseData {
+  private async _loginUser(index: number): Promise<RegisterUserResponseData> {
     const user = this._users[index];
+    const isUserOnline = await this._isUserOnline(user.name);
 
     return {
       name: user.name,
       index: user.index,
-      error: false,
-      errorText: '',
+      error: isUserOnline,
+      errorText: isUserOnline ? 'User is already online' : '',
     };
+  }
+  private async _isUserOnline(name: string): Promise<boolean> {
+    try {
+      await this._websocketService.getLinkedSocketByName(name);
+
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

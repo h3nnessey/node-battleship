@@ -1,62 +1,94 @@
-import type { WebSocket } from 'ws';
-import type { UserPublicData } from '@/types';
-import { getSerializer } from '@/utils/getSerializer';
+import { WebSocket } from 'ws';
+import { getSerializer } from '@/utils';
+import type { UserPublicData, NotifyArgs } from '@/types';
 
 export class WebSocketService {
   private readonly _sockets = new Map<WebSocket, UserPublicData | undefined>();
 
-  public addSocket(ws: WebSocket): void {
+  private static instance: WebSocketService;
+
+  constructor() {
+    if (!WebSocketService.instance) {
+      WebSocketService.instance = this;
+    }
+
+    return WebSocketService.instance;
+  }
+
+  public async addSocket(ws: WebSocket): Promise<void> {
     this._sockets.set(ws, undefined);
   }
 
-  public link(ws: WebSocket, user: UserPublicData): void {
+  public async link(ws: WebSocket, user: UserPublicData): Promise<void> {
     this._sockets.set(ws, user);
   }
 
-  public unlink(ws: WebSocket): void {
+  public async unlink(ws: WebSocket): Promise<void> {
     this._sockets.delete(ws);
   }
 
-  public getLinkedUser(ws: WebSocket): UserPublicData | undefined {
-    return this._sockets.get(ws);
+  public async getLinkedUser(ws: WebSocket): Promise<UserPublicData> {
+    const user = this._sockets.get(ws);
+
+    if (!user) {
+      throw new Error('User is not found');
+    }
+
+    return user;
   }
 
-  public getLinkedSocketByName(name: string): WebSocket | undefined {
-    return this.getAllSockets().find((ws) => this.getLinkedUser(ws)?.name === name);
+  public async getLinkedSocketByName(name: string): Promise<WebSocket> {
+    const sockets = await this.getAllSockets();
+    const ws = sockets.find((ws) => this._sockets.get(ws)?.name === name);
+
+    if (!ws) {
+      throw new Error('Linked socket is not found');
+    }
+
+    return ws;
   }
 
-  public getLinkedSocketByIndex(index: number): WebSocket | undefined {
-    return this.getAllSockets().find((ws) => this.getLinkedUser(ws)?.index === index);
+  public async getLinkedSocketByIndex(index: number): Promise<WebSocket> {
+    const sockets = await this.getAllSockets();
+    const ws = sockets.find((ws) => this._sockets.get(ws)?.index === index);
+
+    if (!ws) {
+      throw new Error('Linked socket is not found');
+    }
+
+    return ws;
   }
 
-  public getAllSockets(): WebSocket[] {
+  public async getAllSockets(): Promise<WebSocket[]> {
     return Array.from(this._sockets.keys());
   }
 
-  public isUserOnline(name: string): boolean {
-    return this.getAllSockets().some((ws) => this.getLinkedUser(ws)?.name === name);
-  }
+  public async notifyAll(type: string, data: unknown): Promise<void> {
+    const sockets = await this.getAllSockets();
 
-  public notifyAll(type: string, data: unknown): void {
-    this.getAllSockets().forEach((ws) => {
+    sockets.forEach((ws) => {
       if (ws.readyState === 1) {
-        this.notify(ws, type, data);
+        this.notify([[ws, type, data]]);
       }
     });
   }
 
-  public notify(ws: WebSocket, type: string, data: unknown): void {
-    if (ws.readyState === 1) {
-      const dataType = typeof data;
-      const serializer = getSerializer(dataType);
+  public async notify(args: NotifyArgs): Promise<void> {
+    args.forEach((arg) => {
+      const [ws, type, data] = arg;
 
-      ws.send(
-        JSON.stringify({
-          type,
-          data: serializer(data),
-          id: 0,
-        }),
-      );
-    }
+      if (ws.readyState === 1) {
+        const dataType = typeof data;
+        const serializer = getSerializer(dataType);
+
+        ws.send(
+          JSON.stringify({
+            type,
+            data: serializer(data),
+            id: 0,
+          }),
+        );
+      }
+    });
   }
 }

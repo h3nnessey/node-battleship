@@ -1,3 +1,5 @@
+import type { WebSocket } from 'ws';
+
 export enum MessageTypes {
   Reg = 'reg',
   UpdateWinners = 'update_winners',
@@ -78,17 +80,12 @@ export interface Player {
 export interface Game {
   gameId: number;
   started: boolean;
-  players: [Player, Player];
+  players: Player[];
 }
 
 export interface PlayerInGame {
   currentPlayerIndex: number;
   ships: Ship[];
-}
-
-export interface StartGameResult {
-  player1: PlayerInGame;
-  player2: PlayerInGame;
 }
 
 export type AddShipsResult =
@@ -192,3 +189,5 @@ export interface Ship {
   length: number;
   type: ShipTypes;
 }
+
+export type NotifyArgs = [ws: WebSocket, type: string, data: unknown][];

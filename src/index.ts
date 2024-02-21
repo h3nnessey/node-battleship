@@ -8,8 +8,8 @@ wss.on('listening', () => {
   console.log('WS Server is listening on port 3000');
 });
 
-wss.on('connection', (ws) => {
-  controller.onConnection(ws);
+wss.on('connection', async (ws) => {
+  await controller.onConnection(ws);
 
   ws.on('message', async (message) => {
     await controller.processMessage(ws, message.toString());
@@ -19,7 +19,7 @@ wss.on('connection', (ws) => {
     console.log(error);
   });
 
-  ws.on('close', (code, reason) => {
-    controller.onClose(ws, code, reason.toString().trim());
+  ws.on('close', async (code, reason) => {
+    await controller.onClose(ws, code, reason.toString().trim());
   });
 });
