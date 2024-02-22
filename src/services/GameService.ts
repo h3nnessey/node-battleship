@@ -118,6 +118,7 @@ export class GameService {
         status,
       },
       killed: status === 'killed',
+      winner: player.shipsPoints.every((sp) => sp.every((p) => p.killed)) ? indexPlayer : 0,
       revealPoints: this._revealCellsAroundShip(ship!),
     };
   }

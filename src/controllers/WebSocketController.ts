@@ -133,6 +133,7 @@ export class WebSocketController {
       data: result,
       killed,
       revealPoints,
+      winner,
     } = await this._gameService.attack(data);
 
     const playerWs1 = await this._webSocketService.getLinkedSocketByIndex(playerIndex1);
@@ -158,6 +159,13 @@ export class WebSocketController {
           ],
         ]);
       }
+    }
+
+    if (winner) {
+      return await this._webSocketService.notify([
+        [playerWs1, MessageTypes.Finish, { winPlayer: winner }],
+        [playerWs2, MessageTypes.Finish, { winPlayer: winner }],
+      ]);
     }
 
     await this._turn(playerWs1, playerWs2, turnIndex);
