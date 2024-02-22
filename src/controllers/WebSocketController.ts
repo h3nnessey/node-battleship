@@ -6,10 +6,10 @@ import {
   AddUserToRoomData,
   Room,
   AddShipsData,
+  AttackData,
 } from '@/types';
 import { RoomService, UserService, WinnerService, WebSocketService, GameService } from '@/services';
 
-// TODO: make all functions async
 export class WebSocketController {
   private readonly _userService = new UserService();
   private readonly _roomService = new RoomService();
@@ -75,13 +75,12 @@ export class WebSocketController {
   }
 
   private async _addShips(data: AddShipsData): Promise<void> {
-    const result = await this._gameService.addShips(data);
+    const {
+      isGameReady,
+      playersIndex: [playerIndex1, playerIndex2],
+    } = await this._gameService.addShips(data);
 
-    if (result.isGameReady) {
-      const {
-        playersIndex: [playerIndex1, playerIndex2],
-      } = result;
-
+    if (isGameReady) {
       await this._startGame(playerIndex1, playerIndex2, data.gameId);
     }
   }
@@ -127,7 +126,42 @@ export class WebSocketController {
     ]);
   }
 
-  private async _attack(ws: WebSocket) {}
+  private async _attack(data: AttackData) {
+    const {
+      playerIndexes: [playerIndex1, playerIndex2],
+      turnIndex,
+      data: result,
+      killed,
+      revealPoints,
+    } = await this._gameService.attack(data);
+
+    const playerWs1 = await this._webSocketService.getLinkedSocketByIndex(playerIndex1);
+    const playerWs2 = await this._webSocketService.getLinkedSocketByIndex(playerIndex2);
+
+    await this._webSocketService.notify([
+      [playerWs1, MessageTypes.Attack, { ...result, currentPlayer: playerIndex1 }],
+      [playerWs2, MessageTypes.Attack, { ...result, currentPlayer: playerIndex2 }],
+    ]);
+
+    if (killed) {
+      for (let i = 0; i < revealPoints.length; i += 1) {
+        await this._webSocketService.notify([
+          [
+            playerWs1,
+            MessageTypes.Attack,
+            { position: revealPoints[i], status: 'miss', currentPlayer: playerIndex1 },
+          ],
+          [
+            playerWs2,
+            MessageTypes.Attack,
+            { position: revealPoints[i], status: 'miss', currentPlayer: playerIndex2 },
+          ],
+        ]);
+      }
+    }
+
+    await this._turn(playerWs1, playerWs2, turnIndex);
+  }
 
   private async _randomAttack(ws: WebSocket) {}
 
@@ -184,7 +218,7 @@ export class WebSocketController {
         return this._addShips.bind(this, data);
       }
       case MessageTypes.Attack: {
-        return this._attack.bind(this, ws);
+        return this._attack.bind(this, data);
       }
       case MessageTypes.RandomAttack: {
         return this._randomAttack.bind(this, ws);

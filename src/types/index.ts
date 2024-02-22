@@ -75,6 +75,13 @@ export interface AddShipsData {
 export interface Player {
   indexPlayer: number;
   ships: Ship[];
+  shipsPoints: ShipPoint[][];
+}
+
+export interface ShipPoint {
+  x: number;
+  y: number;
+  killed: boolean;
 }
 
 export interface Game {
@@ -88,9 +95,10 @@ export interface PlayerInGame {
   ships: Ship[];
 }
 
-export type AddShipsResult =
-  | { isGameReady: false }
-  | { isGameReady: true; playersIndex: [number, number] };
+export interface AddShipsResult {
+  isGameReady: boolean;
+  playersIndex: [number, number];
+}
 
 export interface StartGameData {
   gameId: number;
