@@ -86,8 +86,13 @@ export interface ShipPoint {
 
 export interface Game {
   gameId: number;
-  started: boolean;
   players: Player[];
+  turnIndex: number;
+}
+
+export interface StartGameResult {
+  nextTurnIndex: number;
+  players: PlayerInGame[];
 }
 
 export interface PlayerInGame {

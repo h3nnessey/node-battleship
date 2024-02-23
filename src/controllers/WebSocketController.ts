@@ -90,7 +90,10 @@ export class WebSocketController {
     playerIndex2: number,
     gameId: number,
   ): Promise<void> {
-    const [player1, player2] = await this._gameService.startGame(gameId);
+    const {
+      nextTurnIndex,
+      players: [player1, player2],
+    } = await this._gameService.startGame(gameId);
 
     const playerWs1 = await this._webSocketService.getLinkedSocketByIndex(playerIndex1);
     const playerWs2 = await this._webSocketService.getLinkedSocketByIndex(playerIndex2);
@@ -100,7 +103,7 @@ export class WebSocketController {
       [playerWs2, MessageTypes.StartGame, player2],
     ]);
 
-    await this._turn(playerWs1, playerWs2, player1.currentPlayerIndex);
+    await this._turn(playerWs1, playerWs2, nextTurnIndex);
   }
 
   private async _turn(
@@ -128,52 +131,73 @@ export class WebSocketController {
 
   private async _attack(data: AttackData) {
     const {
-      playerIndexes: [playerIndex1, playerIndex2],
-      turnIndex,
+      players: { oppositeIndex, playerIndex },
       data: result,
       killed,
-      revealPoints,
+      nextTurnIndex,
       winner,
     } = await this._gameService.attack(data);
 
-    const playerWs1 = await this._webSocketService.getLinkedSocketByIndex(playerIndex1);
-    const playerWs2 = await this._webSocketService.getLinkedSocketByIndex(playerIndex2);
+    const oppositeWs = await this._webSocketService.getLinkedSocketByIndex(oppositeIndex);
+    const playerWs = await this._webSocketService.getLinkedSocketByIndex(playerIndex);
 
     await this._webSocketService.notify([
-      [playerWs1, MessageTypes.Attack, { ...result, currentPlayer: playerIndex1 }],
-      [playerWs2, MessageTypes.Attack, { ...result, currentPlayer: playerIndex2 }],
+      [oppositeWs, MessageTypes.Attack, { ...result, currentPlayer: playerIndex }],
+      [playerWs, MessageTypes.Attack, { ...result, currentPlayer: playerIndex }],
     ]);
 
     if (killed) {
-      for (let i = 0; i < revealPoints.length; i += 1) {
+      const { killedPoints, revealedPoints } = killed;
+
+      killedPoints.forEach(async (position) => {
         await this._webSocketService.notify([
           [
-            playerWs1,
+            oppositeWs,
             MessageTypes.Attack,
-            { position: revealPoints[i], status: 'miss', currentPlayer: playerIndex1 },
+            { position, status: 'killed', currentPlayer: playerIndex },
           ],
           [
-            playerWs2,
+            playerWs,
             MessageTypes.Attack,
-            { position: revealPoints[i], status: 'miss', currentPlayer: playerIndex2 },
+            { position, status: 'killed', currentPlayer: playerIndex },
           ],
         ]);
-      }
+      });
+
+      revealedPoints.forEach(async ({ x, y }) => {
+        await this._webSocketService.notify([
+          [
+            oppositeWs,
+            MessageTypes.Attack,
+            { position: { x, y }, status: 'miss', currentPlayer: playerIndex },
+          ],
+          [
+            playerWs,
+            MessageTypes.Attack,
+            { position: { x, y }, status: 'miss', currentPlayer: playerIndex },
+          ],
+        ]);
+      });
     }
 
     if (winner) {
-      return await this._webSocketService.notify([
-        [playerWs1, MessageTypes.Finish, { winPlayer: winner }],
-        [playerWs2, MessageTypes.Finish, { winPlayer: winner }],
-      ]);
+      // remove game by gameId
+      return await this._finish(oppositeWs, playerWs, winner);
     }
 
-    await this._turn(playerWs1, playerWs2, turnIndex);
+    await this._turn(oppositeWs, playerWs, nextTurnIndex);
   }
 
   private async _randomAttack(ws: WebSocket) {}
 
-  private async _finish(ws: WebSocket) {}
+  private async _finish(playerWs1: WebSocket, playerWs2: WebSocket, winner: number): Promise<void> {
+    await this._webSocketService.notify([
+      [playerWs1, MessageTypes.Finish, { winPlayer: winner }],
+      [playerWs2, MessageTypes.Finish, { winPlayer: winner }],
+    ]);
+
+    // await this._updateWinners();
+  }
 
   public async processMessage(ws: WebSocket, message: string): Promise<void> {
     try {

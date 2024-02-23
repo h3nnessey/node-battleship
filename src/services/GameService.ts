@@ -4,11 +4,11 @@ import {
   AddShipsData,
   AddShipsResult,
   Game,
-  PlayerInGame,
   ShipPoint,
   AttackData,
   Ship,
   Player,
+  StartGameResult,
 } from '@/types';
 
 export class GameService {
@@ -16,30 +16,30 @@ export class GameService {
   private _gameIndex = 1;
 
   public async createGame(room: Room): Promise<CreateGameData[]> {
-    const [user1, user2] = room.roomUsers;
+    const [player1, player2] = room.roomUsers;
 
     this._gameIndex += 1;
 
     this._games.push({
-      started: false,
       gameId: this._gameIndex,
       players: [
         {
-          indexPlayer: user1.index,
+          indexPlayer: player1.index,
           ships: [],
           shipsPoints: [],
         },
         {
-          indexPlayer: user2.index,
+          indexPlayer: player2.index,
           ships: [],
           shipsPoints: [],
         },
       ],
+      turnIndex: player1.index,
     });
 
     return [
-      { idGame: this._gameIndex, idPlayer: user1.index },
-      { idGame: this._gameIndex, idPlayer: user2.index },
+      { idGame: this._gameIndex, idPlayer: player1.index },
+      { idGame: this._gameIndex, idPlayer: player2.index },
     ];
   }
 
@@ -59,56 +59,70 @@ export class GameService {
     };
   }
 
-  public async startGame(gameId: number): Promise<PlayerInGame[]> {
+  public async startGame(gameId: number): Promise<StartGameResult> {
     const game = this._getGameById(gameId);
     const [player1, player2] = game.players;
 
-    game.started = true;
+    game.turnIndex = player1.indexPlayer;
 
-    return [
-      {
-        currentPlayerIndex: player1.indexPlayer,
-        ships: player1.ships,
-      },
-      {
-        currentPlayerIndex: player2.indexPlayer,
-        ships: player2.ships,
-      },
-    ];
+    return {
+      nextTurnIndex: game.turnIndex,
+      players: [
+        {
+          currentPlayerIndex: player1.indexPlayer,
+          ships: player1.ships,
+        },
+        {
+          currentPlayerIndex: player2.indexPlayer,
+          ships: player2.ships,
+        },
+      ],
+    };
   }
 
   public async attack({ gameId, indexPlayer, x, y }: AttackData) {
-    const player = this._getOppositePlayerInGameByIndex(gameId, indexPlayer);
-    const ship = player.shipsPoints.find((ship) =>
+    const game = this._getGameById(gameId);
+
+    if (game.turnIndex !== indexPlayer) {
+      throw new Error('Cannot attack on the wrong turn');
+    }
+
+    const oppositePlayer = this._getOppositePlayerInGameByIndex(gameId, indexPlayer);
+    const oppositeShip = oppositePlayer.shipsPoints.find((ship) =>
       ship.some((point) => point.x === x && point.y === y),
     );
-    const point = ship?.find((point) => point.x === x && point.y === y);
+
+    const shootingPoint = oppositeShip?.find((point) => point.x === x && point.y === y);
 
     let status: 'miss' | 'killed' | 'shot' = 'miss';
-    let turnIndex = indexPlayer;
 
-    if (!point || !ship) {
+    game.turnIndex = oppositePlayer.indexPlayer;
+
+    if (!shootingPoint) {
       status = 'miss';
-      turnIndex = player.indexPlayer;
     }
 
-    if (point) {
-      point.killed = true;
+    // if already killed or revealed - do nothing?
+    if (shootingPoint) {
+      shootingPoint.killed = true;
       status = 'shot';
-      turnIndex = indexPlayer;
     }
 
-    const killed = ship?.every((point) => point.killed);
+    const isShipKilled = oppositeShip?.every((point) => point.killed);
 
-    if (killed) {
+    if (isShipKilled) {
       status = 'killed';
-      turnIndex = indexPlayer;
-      console.log(this._revealCellsAroundShip(ship!));
     }
+
+    if (status === 'killed' || status === 'shot') {
+      game.turnIndex = indexPlayer;
+    }
+
+    const isWinner = oppositePlayer.shipsPoints.every((sp) => sp.every((p) => p.killed));
 
     return {
-      playerIndexes: [player.indexPlayer, indexPlayer],
-      turnIndex,
+      players: { oppositeIndex: oppositePlayer.indexPlayer, playerIndex: indexPlayer },
+      nextTurnIndex: game.turnIndex,
       data: {
         position: {
           x,
@@ -117,9 +131,13 @@ export class GameService {
         currentPlayer: indexPlayer,
         status,
       },
-      killed: status === 'killed',
-      winner: player.shipsPoints.every((sp) => sp.every((p) => p.killed)) ? indexPlayer : 0,
-      revealPoints: this._revealCellsAroundShip(ship!),
+      killed: isShipKilled
+        ? {
+            killedPoints: oppositeShip || [],
+            revealedPoints: this._revealCellsAroundShip(oppositeShip),
+          }
+        : null,
+      winner: isWinner ? indexPlayer : null,
     };
   }
 
@@ -127,7 +145,12 @@ export class GameService {
     // TODO: if currentPlayerIndex !== indexPlayer => just return
   }
 
-  private _revealCellsAroundShip(shipPoints: ShipPoint[]) {
+  private _revealCellsAroundShip(shipPoints?: ShipPoint[]) {
+    if (!shipPoints) {
+      throw new Error('No Ship Points');
+    }
+
+    // try Set?
     const result: { x: number; y: number }[] = [];
 
     shipPoints.forEach(({ x, y }) => {
@@ -146,7 +169,7 @@ export class GameService {
         if (!result.includes(point)) result.push(point);
       });
     });
-
+    // removing ship points (ship itself)
     return result.filter(({ x, y }) => !shipPoints.some((point) => point.x === x && point.y === y));
   }
 
