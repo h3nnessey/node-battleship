@@ -53,6 +53,39 @@ export interface AttackData {
   y: number;
 }
 
+export type AttackResult = AttackSuccessData | AttackFailData;
+
+export interface AttackFailData {
+  success: false;
+  nextTurnIndex: number;
+  players: {
+    oppositeIndex: number;
+    playerIndex: number;
+  };
+}
+
+export interface AttackSuccessData {
+  success: true;
+  players: {
+    oppositeIndex: number;
+    playerIndex: number;
+  };
+  nextTurnIndex: number;
+  data: {
+    position: {
+      x: number;
+      y: number;
+    };
+    currentPlayer: number;
+    status: 'miss' | 'killed' | 'shot';
+  };
+  killed: {
+    killedPoints: ShipPoint[];
+    revealedPoints: { x: number; y: number }[];
+  } | null;
+  winner: number | null;
+}
+
 export interface RandomAttackData {
   gameId: number;
   indexPlayer: number;
@@ -76,6 +109,7 @@ export interface Player {
   indexPlayer: number;
   ships: Ship[];
   shipsPoints: ShipPoint[][];
+  revealedPoints: { x: number; y: number }[];
 }
 
 export interface ShipPoint {

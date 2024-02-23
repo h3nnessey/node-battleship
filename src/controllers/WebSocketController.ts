@@ -106,49 +106,35 @@ export class WebSocketController {
     await this._turn(playerWs1, playerWs2, nextTurnIndex);
   }
 
-  private async _turn(
-    playerWs1: WebSocket,
-    playerWs2: WebSocket,
-    currentPlayer: number,
-  ): Promise<void> {
-    await this._webSocketService.notify([
-      [
-        playerWs1,
-        MessageTypes.Turn,
-        {
-          currentPlayer,
-        },
-      ],
-      [
-        playerWs2,
-        MessageTypes.Turn,
-        {
-          currentPlayer,
-        },
-      ],
-    ]);
-  }
-
   private async _attack(data: AttackData) {
+    const result = await this._gameService.attack(data);
+    const oppositeWs = await this._webSocketService.getLinkedSocketByIndex(
+      result.players.oppositeIndex,
+    );
+    const playerWs = await this._webSocketService.getLinkedSocketByIndex(
+      result.players.playerIndex,
+    );
+
+    if (!result.success) {
+      return this._turn(oppositeWs, playerWs, result.nextTurnIndex);
+    }
+
     const {
-      players: { oppositeIndex, playerIndex },
-      data: result,
+      data: attackResult,
       killed,
       nextTurnIndex,
       winner,
-    } = await this._gameService.attack(data);
-
-    const oppositeWs = await this._webSocketService.getLinkedSocketByIndex(oppositeIndex);
-    const playerWs = await this._webSocketService.getLinkedSocketByIndex(playerIndex);
+      players: { playerIndex },
+    } = result;
 
     await this._webSocketService.notify([
-      [oppositeWs, MessageTypes.Attack, { ...result, currentPlayer: playerIndex }],
-      [playerWs, MessageTypes.Attack, { ...result, currentPlayer: playerIndex }],
+      [oppositeWs, MessageTypes.Attack, attackResult],
+      [playerWs, MessageTypes.Attack, attackResult],
     ]);
 
     if (killed) {
       const { killedPoints, revealedPoints } = killed;
-
+      // squash into 1 array and send for each message to oppWs and playerWs
       killedPoints.forEach(async (position) => {
         await this._webSocketService.notify([
           [
@@ -165,6 +151,7 @@ export class WebSocketController {
       });
 
       revealedPoints.forEach(async ({ x, y }) => {
+        // await Promise.all()
         await this._webSocketService.notify([
           [
             oppositeWs,
@@ -182,13 +169,26 @@ export class WebSocketController {
 
     if (winner) {
       // remove game by gameId
-      return await this._finish(oppositeWs, playerWs, winner);
+      return this._finish(oppositeWs, playerWs, winner);
     }
 
     await this._turn(oppositeWs, playerWs, nextTurnIndex);
   }
 
   private async _randomAttack(ws: WebSocket) {}
+
+  private async _turn(
+    playerWs1: WebSocket,
+    playerWs2: WebSocket,
+    currentPlayer: number,
+  ): Promise<void> {
+    const result = await this._gameService.turn(currentPlayer);
+
+    await this._webSocketService.notify([
+      [playerWs1, ...result],
+      [playerWs2, ...result],
+    ]);
+  }
 
   private async _finish(playerWs1: WebSocket, playerWs2: WebSocket, winner: number): Promise<void> {
     await this._webSocketService.notify([

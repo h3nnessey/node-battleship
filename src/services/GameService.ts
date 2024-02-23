@@ -9,6 +9,8 @@ import {
   Ship,
   Player,
   StartGameResult,
+  MessageTypes,
+  AttackResult,
 } from '@/types';
 
 export class GameService {
@@ -27,11 +29,13 @@ export class GameService {
           indexPlayer: player1.index,
           ships: [],
           shipsPoints: [],
+          revealedPoints: [],
         },
         {
           indexPlayer: player2.index,
           ships: [],
           shipsPoints: [],
+          revealedPoints: [],
         },
       ],
       turnIndex: player1.index,
@@ -80,47 +84,64 @@ export class GameService {
     };
   }
 
-  public async attack({ gameId, indexPlayer, x, y }: AttackData) {
+  public async attack({ gameId, indexPlayer, x, y }: AttackData): Promise<AttackResult> {
     const game = this._getGameById(gameId);
-
-    if (game.turnIndex !== indexPlayer) {
-      throw new Error('Cannot attack on the wrong turn');
-    }
-
     const oppositePlayer = this._getOppositePlayerInGameByIndex(gameId, indexPlayer);
     const oppositeShip = oppositePlayer.shipsPoints.find((ship) =>
       ship.some((point) => point.x === x && point.y === y),
     );
-
     const shootingPoint = oppositeShip?.find((point) => point.x === x && point.y === y);
+    const { revealedPoints } = oppositePlayer;
+    const isAlreadyRevealed = revealedPoints.some((point) => point.x === x && point.y === y);
+    let revealedPointsToSend: { x: number; y: number }[] = [];
 
     let status: 'miss' | 'killed' | 'shot' = 'miss';
 
-    game.turnIndex = oppositePlayer.indexPlayer;
+    // todo: handle wrong turnIndex for current game.turnIndex
+
+    if (isAlreadyRevealed) {
+      // or pass turn to the opposite player
+      return {
+        success: false,
+        nextTurnIndex: indexPlayer,
+        players: { oppositeIndex: oppositePlayer.indexPlayer, playerIndex: indexPlayer },
+      };
+    }
 
     if (!shootingPoint) {
       status = 'miss';
+      game.turnIndex = oppositePlayer.indexPlayer;
+      revealedPoints.push({ x, y });
     }
 
-    // if already killed or revealed - do nothing?
     if (shootingPoint) {
       shootingPoint.killed = true;
       status = 'shot';
+      revealedPoints.push({ x, y });
     }
 
     const isShipKilled = oppositeShip?.every((point) => point.killed);
 
     if (isShipKilled) {
       status = 'killed';
+
+      revealedPointsToSend = this._revealCellsAroundShip(oppositeShip).filter(
+        (point) => !revealedPoints.some((p) => p.x === point.x && p.y === point.y),
+      );
+
+      revealedPoints.push(
+        ...oppositeShip!.map((p) => ({ x: p.x, y: p.y })),
+        ...this._revealCellsAroundShip(oppositeShip),
+      );
     }
 
     if (status === 'killed' || status === 'shot') {
       game.turnIndex = indexPlayer;
+      revealedPoints.push({ x, y });
     }
 
-    const isWinner = oppositePlayer.shipsPoints.every((sp) => sp.every((p) => p.killed));
-
     return {
+      success: true,
       players: { oppositeIndex: oppositePlayer.indexPlayer, playerIndex: indexPlayer },
       nextTurnIndex: game.turnIndex,
       data: {
@@ -134,15 +155,17 @@ export class GameService {
       killed: isShipKilled
         ? {
             killedPoints: oppositeShip || [],
-            revealedPoints: this._revealCellsAroundShip(oppositeShip),
+            revealedPoints: revealedPointsToSend,
           }
         : null,
-      winner: isWinner ? indexPlayer : null,
+      winner: oppositePlayer.shipsPoints.every((sp) => sp.every((p) => p.killed))
+        ? indexPlayer
+        : null,
     };
   }
 
-  public async turn() {
-    // TODO: if currentPlayerIndex !== indexPlayer => just return
+  public async turn(currentPlayer: number): Promise<[string, { currentPlayer: number }]> {
+    return [MessageTypes.Turn, { currentPlayer }];
   }
 
   private _revealCellsAroundShip(shipPoints?: ShipPoint[]) {
