@@ -7,7 +7,9 @@ import {
   Room,
   AddShipsData,
   AttackData,
+  RandomAttackData,
 } from '@/types';
+import { getRandomInt } from '@/utils';
 import { RoomService, UserService, WinnerService, WebSocketService, GameService } from '@/services';
 
 export class WebSocketController {
@@ -175,7 +177,13 @@ export class WebSocketController {
     await this._turn(oppositeWs, playerWs, nextTurnIndex);
   }
 
-  private async _randomAttack(ws: WebSocket) {}
+  private async _randomAttack(data: RandomAttackData) {
+    await this._attack({
+      ...data,
+      x: getRandomInt(10),
+      y: getRandomInt(10),
+    });
+  }
 
   private async _turn(
     playerWs1: WebSocket,
@@ -253,7 +261,7 @@ export class WebSocketController {
         return this._attack.bind(this, data);
       }
       case MessageTypes.RandomAttack: {
-        return this._randomAttack.bind(this, ws);
+        return this._randomAttack.bind(this, data);
       }
       default:
         return null;

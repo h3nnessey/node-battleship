@@ -97,20 +97,20 @@ export class GameService {
 
     let status: 'miss' | 'killed' | 'shot' = 'miss';
 
-    // todo: handle wrong turnIndex for current game.turnIndex
+    // check on wrong turn index
+
+    game.turnIndex = oppositePlayer.indexPlayer;
 
     if (isAlreadyRevealed) {
-      // or pass turn to the opposite player
       return {
         success: false,
-        nextTurnIndex: indexPlayer,
+        nextTurnIndex: game.turnIndex,
         players: { oppositeIndex: oppositePlayer.indexPlayer, playerIndex: indexPlayer },
       };
     }
 
     if (!shootingPoint) {
       status = 'miss';
-      game.turnIndex = oppositePlayer.indexPlayer;
       revealedPoints.push({ x, y });
     }
 
