@@ -97,7 +97,9 @@ export class GameService {
 
     let status: 'miss' | 'killed' | 'shot' = 'miss';
 
-    // check on wrong turn index
+    if (game.turnIndex !== indexPlayer) {
+      throw new Error('Not your turn buddy');
+    }
 
     game.turnIndex = oppositePlayer.indexPlayer;
 
