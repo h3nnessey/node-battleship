@@ -14,7 +14,7 @@ import {
 } from '@/types';
 
 export class GameService {
-  private _games: Game[] = [];
+  private _games = new Map<number, Game>([]);
   private _gameIndex = 1;
 
   public async createGame(room: Room): Promise<CreateGameData[]> {
@@ -22,7 +22,7 @@ export class GameService {
 
     this._gameIndex += 1;
 
-    this._games.push({
+    this._games.set(this._gameIndex, {
       gameId: this._gameIndex,
       players: [
         {
@@ -86,7 +86,7 @@ export class GameService {
 
   public async attack({ gameId, indexPlayer, x, y }: AttackData): Promise<AttackResult> {
     const game = this._getGameById(gameId);
-    const oppositePlayer = this._getOppositePlayerInGameByIndex(gameId, indexPlayer);
+    const oppositePlayer = this.getOppositePlayerInGameByIndex(gameId, indexPlayer);
     const oppositeShip = oppositePlayer.shipsPoints.find((ship) =>
       ship.some((point) => point.x === x && point.y === y),
     );
@@ -166,6 +166,18 @@ export class GameService {
     };
   }
 
+  public async deleteGame(gameId: number) {
+    this._games.delete(gameId);
+  }
+
+  public async getGameDataByUserId(userId: number): Promise<Game | undefined> {
+    const game = Array.from(this._games.values()).find((game) =>
+      game.players.find((player) => player.indexPlayer === userId),
+    );
+
+    return game;
+  }
+
   public async turn(currentPlayer: number): Promise<[string, { currentPlayer: number }]> {
     return [MessageTypes.Turn, { currentPlayer }];
   }
@@ -199,7 +211,7 @@ export class GameService {
   }
 
   private _getGameById(gameId: number): Game {
-    const game = this._games.find((game) => game.gameId === gameId);
+    const game = this._games.get(gameId);
 
     if (!game) {
       throw new Error('Game is not found');
@@ -219,7 +231,7 @@ export class GameService {
     return player;
   }
 
-  private _getOppositePlayerInGameByIndex(gameId: number, indexPlayer: number): Player {
+  public getOppositePlayerInGameByIndex(gameId: number, indexPlayer: number): Player {
     const game = this._getGameById(gameId);
     const player = game.players.find((player) => player.indexPlayer !== indexPlayer);
 

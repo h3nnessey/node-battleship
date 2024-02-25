@@ -153,7 +153,7 @@ export class WebSocketController {
       });
 
       revealedPoints.forEach(async ({ x, y }) => {
-        // await Promise.all()
+        // await Promise.all([])
         await this._webSocketService.notify([
           [
             oppositeWs,
@@ -170,8 +170,7 @@ export class WebSocketController {
     }
 
     if (winner) {
-      // remove game by gameId
-      return this._finish(oppositeWs, playerWs, winner);
+      return this._finish(oppositeWs, playerWs, winner, data.gameId);
     }
 
     await this._turn(oppositeWs, playerWs, nextTurnIndex);
@@ -198,13 +197,24 @@ export class WebSocketController {
     ]);
   }
 
-  private async _finish(playerWs1: WebSocket, playerWs2: WebSocket, winner: number): Promise<void> {
+  private async _finish(
+    playerWs1: WebSocket,
+    playerWs2: WebSocket,
+    winnerIndex: number,
+    gameId: number,
+  ): Promise<void> {
+    const player1 = await this._webSocketService.getLinkedUser(playerWs1);
+    const player2 = await this._webSocketService.getLinkedUser(playerWs2);
+
+    await this._gameService.deleteGame(gameId);
+    await this._winnerService.addWinner(player1.index === winnerIndex ? player1 : player2);
+
     await this._webSocketService.notify([
-      [playerWs1, MessageTypes.Finish, { winPlayer: winner }],
-      [playerWs2, MessageTypes.Finish, { winPlayer: winner }],
+      [playerWs1, MessageTypes.Finish, { winPlayer: winnerIndex }],
+      [playerWs2, MessageTypes.Finish, { winPlayer: winnerIndex }],
     ]);
 
-    // await this._updateWinners();
+    await this._updateWinners();
   }
 
   public async processMessage(ws: WebSocket, message: string): Promise<void> {
@@ -226,6 +236,20 @@ export class WebSocketController {
   public async onClose(ws: WebSocket, code: number, reason: string): Promise<void> {
     try {
       const user = await this._webSocketService.getLinkedUser(ws);
+      const userGame = await this._gameService.getGameDataByUserId(user.index);
+
+      if (userGame) {
+        const oppositePlayer = this._gameService.getOppositePlayerInGameByIndex(
+          userGame.gameId,
+          user.index,
+        );
+
+        const oppositePlayerWs = await this._webSocketService.getLinkedSocketByIndex(
+          oppositePlayer.indexPlayer,
+        );
+
+        await this._finish(ws, oppositePlayerWs, oppositePlayer.indexPlayer, userGame.gameId);
+      }
 
       await this._webSocketService.unlink(ws);
       await this._roomService.deleteUserRoom(user.name);
