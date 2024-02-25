@@ -171,11 +171,9 @@ export class GameService {
   }
 
   public async getGameDataByUserId(userId: number): Promise<Game | undefined> {
-    const game = Array.from(this._games.values()).find((game) =>
+    return Array.from(this._games.values()).find((game) =>
       game.players.find((player) => player.indexPlayer === userId),
     );
-
-    return game;
   }
 
   public async turn(currentPlayer: number): Promise<[string, { currentPlayer: number }]> {

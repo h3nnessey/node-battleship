@@ -1,6 +1,5 @@
 import { Room, UserPublicData } from '@/types';
 
-// delete room when user closing tab etc.
 export class RoomService {
   private _rooms: Room[] = [];
   private _currentIndex = 1;
@@ -43,7 +42,13 @@ export class RoomService {
 
     room.roomUsers.push(user);
 
-    this._rooms = this._rooms.filter((room) => roomId !== room.roomId);
+    const [player1, player2] = room.roomUsers;
+
+    this._rooms = this._rooms.filter(
+      (room) =>
+        roomId !== room.roomId &&
+        !room.roomUsers.some((u) => u.name === player1.name || u.name === player2.name),
+    );
 
     return room;
   }
