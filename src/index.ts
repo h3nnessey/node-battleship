@@ -8,11 +8,13 @@ wss.on('listening', () => {
   console.log('WS Server is listening on port 3000');
 });
 
-wss.on('connection', async (ws) => {
+wss.on('connection', async (ws, req) => {
+  const id = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
+
   await controller.onConnection(ws);
 
   ws.on('message', async (message) => {
-    await controller.processMessage(ws, message.toString());
+    await controller.processMessage(ws, message.toString(), id);
   });
 
   ws.on('error', (error) => {

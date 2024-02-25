@@ -13,6 +13,7 @@ export enum MessageTypes {
   RandomAttack = 'randomAttack',
   Turn = 'turn',
   Finish = 'finish',
+  SinglePlay = 'single_play',
 }
 
 export interface RegisterUserRequestData {
@@ -203,13 +204,25 @@ export interface RandomAttackMessage extends BaseMessage {
   data: RandomAttackData;
 }
 
+export interface SinglePlayMessage extends BaseMessage {
+  type: MessageTypes.SinglePlay;
+  data: string;
+}
+
+export interface TurnMessage extends BaseMessage {
+  type: MessageTypes.Turn;
+  data: TurnData;
+}
+
 export type RequestMessages =
   | RegisterUserRequestMessage
   | CreateRoomMessage
   | AddUserToRoomMessage
   | AttackMessage
   | RandomAttackMessage
-  | AddShipsMessage;
+  | AddShipsMessage
+  | SinglePlayMessage
+  | TurnMessage;
 
 export interface UserPublicData {
   name: string;

@@ -48,7 +48,7 @@ export class GameService {
   }
 
   public async addShips({ gameId, ships, indexPlayer }: AddShipsData): Promise<AddShipsResult> {
-    const game = this._getGameById(gameId);
+    const game = this.getGameById(gameId);
     const player = this._getPlayerInGameByIndex(gameId, indexPlayer);
 
     player.ships = ships;
@@ -64,7 +64,7 @@ export class GameService {
   }
 
   public async startGame(gameId: number): Promise<StartGameResult> {
-    const game = this._getGameById(gameId);
+    const game = this.getGameById(gameId);
     const [player1, player2] = game.players;
 
     game.turnIndex = player1.indexPlayer;
@@ -85,7 +85,7 @@ export class GameService {
   }
 
   public async attack({ gameId, indexPlayer, x, y }: AttackData): Promise<AttackResult> {
-    const game = this._getGameById(gameId);
+    const game = this.getGameById(gameId);
     const oppositePlayer = this.getOppositePlayerInGameByIndex(gameId, indexPlayer);
     const oppositeShip = oppositePlayer.shipsPoints.find((ship) =>
       ship.some((point) => point.x === x && point.y === y),
@@ -208,7 +208,7 @@ export class GameService {
     return result.filter(({ x, y }) => !shipPoints.some((point) => point.x === x && point.y === y));
   }
 
-  private _getGameById(gameId: number): Game {
+  public getGameById(gameId: number): Game {
     const game = this._games.get(gameId);
 
     if (!game) {
@@ -219,7 +219,7 @@ export class GameService {
   }
 
   private _getPlayerInGameByIndex(gameId: number, indexPlayer: number): Player {
-    const game = this._getGameById(gameId);
+    const game = this.getGameById(gameId);
     const player = game.players.find((player) => player.indexPlayer === indexPlayer);
 
     if (!player) {
@@ -230,7 +230,7 @@ export class GameService {
   }
 
   public getOppositePlayerInGameByIndex(gameId: number, indexPlayer: number): Player {
-    const game = this._getGameById(gameId);
+    const game = this.getGameById(gameId);
     const player = game.players.find((player) => player.indexPlayer !== indexPlayer);
 
     if (!player) {

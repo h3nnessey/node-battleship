@@ -8,7 +8,7 @@ export class RoomService {
     return this._rooms.filter((room) => room.roomUsers.length === 1);
   }
 
-  public async createRoom(user?: UserPublicData): Promise<void> {
+  public async createRoom(user?: UserPublicData): Promise<Room> {
     if (!user) {
       throw new Error('User not found');
     }
@@ -25,6 +25,8 @@ export class RoomService {
     };
 
     this._rooms.push(newRoom);
+
+    return newRoom;
   }
 
   public async addUserToRoom(roomId: number, user?: UserPublicData): Promise<Room> {
