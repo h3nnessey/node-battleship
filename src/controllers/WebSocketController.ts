@@ -10,11 +10,10 @@ import {
   RandomAttackData,
   ShipTypes,
   TurnData,
+  FinishData,
 } from '@/types';
 import { getRandomInt } from '@/utils';
 import { RoomService, UserService, WinnerService, WebSocketService, GameService } from '@/services';
-
-const bots: { socket: WebSocket; index: number }[] = [];
 
 export class WebSocketController {
   private readonly _userService = new UserService();
@@ -113,9 +112,7 @@ export class WebSocketController {
   }
 
   private async _attack(data: AttackData) {
-    if (!data.gameId) {
-      return console.log('bot called attack method');
-    }
+    if (!data.gameId) return;
 
     const result = await this._gameService.attack(data);
 
@@ -223,20 +220,35 @@ export class WebSocketController {
       [playerWs2, MessageTypes.Finish, { winPlayer: winnerIndex }],
     ]);
 
+    if (player1.name.includes('BOT')) {
+      await this._webSocketService.unlink(playerWs1);
+      playerWs1.close();
+    }
+
+    if (player2.name.includes('BOT')) {
+      await this._webSocketService.unlink(playerWs2);
+      playerWs2.close();
+    }
+
     await this._updateWinners();
   }
 
-  private async turn(ws: WebSocket, { currentPlayer }: TurnData) {
+  private async turn({ currentPlayer }: TurnData) {
     try {
       const game = await this._gameService.getGameDataByUserId(currentPlayer);
 
       if (game) {
-        const isBot = bots.find((bot) => bot.index === currentPlayer);
+        const socket = await this._webSocketService.getLinkedSocketByIndex(currentPlayer);
+        const user = await this._webSocketService.getLinkedUser(socket);
+        const isBot = user.name.toLowerCase().includes('bot');
 
         if (isBot) {
-          setTimeout(async () => {
-            await this._randomAttack({ gameId: game.gameId, indexPlayer: currentPlayer });
-          }, 1000);
+          await new Promise((resolve) => {
+            setTimeout(async () => {
+              await this._randomAttack({ gameId: game.gameId, indexPlayer: currentPlayer });
+              resolve(void 0);
+            }, 1000);
+          });
         }
       }
     } catch (error) {
@@ -246,52 +258,45 @@ export class WebSocketController {
 
   private async _singlePlay(ws: WebSocket) {
     const botWs = new WebSocket('ws://localhost:3000');
-    await this.onConnection(botWs);
-    await this._registerUser(botWs, { name: `BOT_${Date.now()}`, password: 'qqqqq' });
+    botWs.onopen = async () => {
+      await this._registerUser(botWs, { name: `BOT_${Date.now()}`, password: 'qqqqq' });
 
-    const user = await this._webSocketService.getLinkedUser(ws);
-    const bot = await this._webSocketService.getLinkedUser(botWs);
+      const user = await this._webSocketService.getLinkedUser(ws);
+      const bot = await this._webSocketService.getLinkedUser(botWs);
 
-    const room = await this._roomService.createRoom(user);
+      const room = await this._roomService.createRoom(user);
 
-    await this._roomService.addUserToRoom(room.roomId, bot);
-    await this._createGame(room);
-    await this._updateRoom();
+      await this._roomService.addUserToRoom(room.roomId, bot);
+      await this._createGame(room);
+      await this._updateRoom();
 
-    const gameData = await this._gameService.getGameDataByUserId(bot.index);
+      const gameData = await this._gameService.getGameDataByUserId(bot.index);
 
-    if (gameData) {
-      await this._addShips({
-        gameId: gameData.gameId,
-        indexPlayer: bot.index,
-        ships: [
-          { position: { x: 1, y: 3 }, direction: false, type: ShipTypes.Huge, length: 4 },
-          { position: { x: 3, y: 6 }, direction: true, type: ShipTypes.Large, length: 3 },
-          { position: { x: 8, y: 4 }, direction: true, type: ShipTypes.Large, length: 3 },
-          { position: { x: 7, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-          { position: { x: 3, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-          { position: { x: 0, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-          { position: { x: 7, y: 8 }, direction: true, type: ShipTypes.Small, length: 1 },
-          { position: { x: 5, y: 0 }, direction: true, type: ShipTypes.Small, length: 1 },
-          { position: { x: 9, y: 1 }, direction: false, type: ShipTypes.Small, length: 1 },
-          { position: { x: 6, y: 3 }, direction: true, type: ShipTypes.Small, length: 1 },
-        ],
-      });
-    }
-
-    bots.push({ socket: botWs, index: bot.index });
-
-    botWs.on('open', () => {
-      console.log('bot connected to ws');
-    });
+      if (gameData) {
+        await this._addShips({
+          gameId: gameData.gameId,
+          indexPlayer: bot.index,
+          ships: [
+            { position: { x: 1, y: 3 }, direction: false, type: ShipTypes.Huge, length: 4 },
+            { position: { x: 3, y: 6 }, direction: true, type: ShipTypes.Large, length: 3 },
+            { position: { x: 8, y: 4 }, direction: true, type: ShipTypes.Large, length: 3 },
+            { position: { x: 7, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
+            { position: { x: 3, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
+            { position: { x: 0, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
+            { position: { x: 7, y: 8 }, direction: true, type: ShipTypes.Small, length: 1 },
+            { position: { x: 5, y: 0 }, direction: true, type: ShipTypes.Small, length: 1 },
+            { position: { x: 9, y: 1 }, direction: false, type: ShipTypes.Small, length: 1 },
+            { position: { x: 6, y: 3 }, direction: true, type: ShipTypes.Small, length: 1 },
+          ],
+        });
+      }
+    };
   }
 
-  public async processMessage(ws: WebSocket, message: string, id: string): Promise<void> {
+  public async processMessage(ws: WebSocket, message: string): Promise<void> {
     try {
       const method = await this._getMethodFromMessage(ws, message);
-
-      console.log(`${id} - ${message}`);
-
+      console.log(message);
       if (method) {
         await method();
       }
@@ -362,7 +367,7 @@ export class WebSocketController {
         return this._singlePlay.bind(this, ws);
       }
       case MessageTypes.Turn: {
-        return this.turn.bind(this, ws, data);
+        return this.turn.bind(this, data);
       }
       default:
         return null;

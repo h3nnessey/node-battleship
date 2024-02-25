@@ -214,6 +214,11 @@ export interface TurnMessage extends BaseMessage {
   data: TurnData;
 }
 
+export interface FinishMessage extends BaseMessage {
+  type: MessageTypes.Finish;
+  data: FinishData;
+}
+
 export type RequestMessages =
   | RegisterUserRequestMessage
   | CreateRoomMessage
