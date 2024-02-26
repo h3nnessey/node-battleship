@@ -10,6 +10,7 @@ import {
   RandomAttackData,
   TurnData,
   UserPublicData,
+  ShipStatuses,
 } from '@/types';
 import { RoomService, UserService, WinnerService, WebSocketService, GameService } from '@/services';
 import { BOT_NAME_PREFIX, BOT_PASSWORD, WS_SERVER_URL } from '@/constants';
@@ -117,7 +118,6 @@ export class WebSocketController {
     if (!data.gameId) return;
 
     const result = await this._gameService.attack(data);
-
     const oppositeWs = await this._webSocketService.getLinkedSocketByIndex(
       result.players.oppositeIndex,
     );
@@ -144,34 +144,33 @@ export class WebSocketController {
 
     if (killed) {
       const { killedPoints, revealedPoints } = killed;
-      // squash into 1 array and send for each message to oppWs and playerWs
-      killedPoints.forEach(async (position) => {
+
+      killedPoints.forEach(async ({ x, y }) => {
         await this._webSocketService.notify([
           [
             oppositeWs,
             MessageTypes.Attack,
-            { position, status: 'killed', currentPlayer: playerIndex },
+            { position: { x, y }, status: ShipStatuses.Killed, currentPlayer: playerIndex },
           ],
           [
             playerWs,
             MessageTypes.Attack,
-            { position, status: 'killed', currentPlayer: playerIndex },
+            { position: { x, y }, status: ShipStatuses.Killed, currentPlayer: playerIndex },
           ],
         ]);
       });
 
       revealedPoints.forEach(async ({ x, y }) => {
-        // await Promise.all([])
         await this._webSocketService.notify([
           [
             oppositeWs,
             MessageTypes.Attack,
-            { position: { x, y }, status: 'miss', currentPlayer: playerIndex },
+            { position: { x, y }, status: ShipStatuses.Miss, currentPlayer: playerIndex },
           ],
           [
             playerWs,
             MessageTypes.Attack,
-            { position: { x, y }, status: 'miss', currentPlayer: playerIndex },
+            { position: { x, y }, status: ShipStatuses.Miss, currentPlayer: playerIndex },
           ],
         ]);
       });
@@ -267,7 +266,7 @@ export class WebSocketController {
   private async _singlePlay(ws: WebSocket): Promise<void> {
     const bot = await this._createBot();
     const user = await this._webSocketService.getLinkedUser(ws);
-    const room = await this._roomService.createRoom(user);
+    const room = await this._roomService.createRoom(user, true);
 
     await this._roomService.addUserToRoom(room.roomId, bot);
     await this._createGame(room);

@@ -8,14 +8,14 @@ export class RoomService {
     return this._rooms.filter((room) => room.roomUsers.length === 1);
   }
 
-  public async createRoom(user?: UserPublicData): Promise<Room> {
+  public async createRoom(user?: UserPublicData, isSinglePlay = false): Promise<Room> {
     if (!user) {
       throw new Error('User not found');
     }
 
     const isUserAlreadyCreatedRoom = await this._isUserHasRoom(user.name);
 
-    if (isUserAlreadyCreatedRoom) {
+    if (isUserAlreadyCreatedRoom && !isSinglePlay) {
       throw new Error('User already created room');
     }
 

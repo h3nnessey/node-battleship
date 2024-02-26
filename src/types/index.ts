@@ -65,6 +65,12 @@ export interface AttackFailData {
   };
 }
 
+export enum ShipStatuses {
+  Miss = 'miss',
+  Killed = 'killed',
+  Shot = 'shot',
+}
+
 export interface AttackSuccessData {
   success: true;
   players: {

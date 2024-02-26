@@ -11,6 +11,7 @@ import {
   StartGameResult,
   AttackResult,
   ShipTypes,
+  ShipStatuses,
 } from '@/types';
 
 export class GameService {
@@ -93,9 +94,9 @@ export class GameService {
     const shootingPoint = oppositeShip?.find((point) => point.x === x && point.y === y);
     const { revealedPoints } = oppositePlayer;
     const isAlreadyRevealed = revealedPoints.some((point) => point.x === x && point.y === y);
-    let revealedPointsToSend: { x: number; y: number }[] = [];
+    const revealedPointsToSend: Omit<ShipPoint, 'killed'>[] = [];
 
-    let status: 'miss' | 'killed' | 'shot' = 'miss';
+    let status: ShipStatuses = ShipStatuses.Miss;
 
     if (game.turnIndex !== indexPlayer) {
       throw new Error('Not your turn buddy');
@@ -111,24 +112,26 @@ export class GameService {
       };
     }
 
+    revealedPoints.push({ x, y });
+
     if (!shootingPoint) {
-      status = 'miss';
-      revealedPoints.push({ x, y });
+      status = ShipStatuses.Miss;
     }
 
     if (shootingPoint) {
       shootingPoint.killed = true;
-      status = 'shot';
-      revealedPoints.push({ x, y });
+      status = ShipStatuses.Shot;
     }
 
     const isShipKilled = oppositeShip?.every((point) => point.killed);
 
     if (isShipKilled) {
-      status = 'killed';
+      status = ShipStatuses.Killed;
 
-      revealedPointsToSend = this._revealCellsAroundShip(oppositeShip).filter(
-        (point) => !revealedPoints.some((p) => p.x === point.x && p.y === point.y),
+      revealedPointsToSend.push(
+        ...this._revealCellsAroundShip(oppositeShip).filter(
+          (point) => !revealedPoints.some((p) => p.x === point.x && p.y === point.y),
+        ),
       );
 
       revealedPoints.push(
@@ -137,9 +140,8 @@ export class GameService {
       );
     }
 
-    if (status === 'killed' || status === 'shot') {
+    if (status === ShipStatuses.Killed || status === ShipStatuses.Shot) {
       game.turnIndex = indexPlayer;
-      revealedPoints.push({ x, y });
     }
 
     return {
@@ -181,26 +183,27 @@ export class GameService {
       throw new Error('No Ship Points');
     }
 
-    // try Set?
     const result: { x: number; y: number }[] = [];
 
     shipPoints.forEach(({ x, y }) => {
       const pointsAroundShip = [
+        { x: x - 1, y: y - 1 },
+        { x, y: y - 1 },
+        { x: x + 1, y: y - 1 },
         { x: x - 1, y },
         { x: x + 1, y },
-        { x, y: y - 1 },
-        { x, y: y + 1 },
-        { x: x - 1, y: y - 1 },
-        { x: x + 1, y: y - 1 },
         { x: x - 1, y: y + 1 },
+        { x, y: y + 1 },
         { x: x + 1, y: y + 1 },
       ].filter(({ x, y }) => x >= 0 && x <= 9 && y >= 0 && y <= 9);
 
       pointsAroundShip.forEach((point) => {
-        if (!result.includes(point)) result.push(point);
+        if (!result.some((p) => p.x === point.x && p.y === point.y)) {
+          result.push(point);
+        }
       });
     });
-    // removing ship points (ship itself)
+
     return result.filter(({ x, y }) => !shipPoints.some((point) => point.x === x && point.y === y));
   }
 
