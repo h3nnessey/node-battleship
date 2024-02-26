@@ -1,0 +1,46 @@
+{
+  "name": "battleship",
+  "version": "1.0.0",
+  "description": "Battleship game",
+  "author": "h3nnessey",
+  "license": "MIT",
+  "keywords": [
+    "node",
+    "typescript",
+    "battleship",
+    "ws"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start:client": "node ./client/index.js",
+    "start:ws:dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only ./src/index.ts",
+    "start:ws:prod": "webpack && node ./dist/index.js",
+    "install:all": "(cd ./client && npm install); && (cd .. && npm install);",
+    "lint": "eslint ./src/ --fix --report-unused-disable-directives --max-warnings 0",
+    "prettier": "prettier ./src/ --write",
+    "build": "webpack"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^7.0.1",
+    "@typescript-eslint/parser": "^7.0.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.5",
+    "ts-loader": "^9.5.1",
+    "ts-node-dev": "^2.0.0",
+    "tsconfig-paths": "^4.2.0",
+    "tsconfig-paths-webpack-plugin": "^4.1.0",
+    "typescript": "^5.3.3",
+    "webpack": "^5.90.2",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "ws_task": "file:client"
+  }
+}
