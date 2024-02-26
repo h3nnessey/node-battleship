@@ -1,3 +1,4 @@
+import { inspect } from 'node:util';
 import { Colors, colorize } from '@/utils';
 
 export class LoggerService {
@@ -14,7 +15,10 @@ export class LoggerService {
   public logIncomingMessage(address: string, data: unknown) {
     const message = colorize(`[INCOMING MESSAGE | ${address}]`, Colors.Green);
 
-    this._log(message, data);
+    console.log(
+      message,
+      inspect(data, { depth: null, showHidden: false, colors: true, compact: true }),
+    );
   }
 
   public logErrorMessage(address: string, error: unknown) {
@@ -38,7 +42,10 @@ export class LoggerService {
   public logOutgoingMessage(address: string, data: unknown) {
     const message = colorize(`[OUTGOING MESSAGE | ${address}]`, Colors.Magenta);
 
-    this._log(message, data);
+    console.log(
+      message,
+      inspect(data, { depth: null, showHidden: false, colors: true, compact: true }),
+    );
   }
 
   private _log(message: string, ...args: unknown[]) {
