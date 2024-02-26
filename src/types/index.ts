@@ -232,6 +232,7 @@ export type RequestMessages =
 export interface UserPublicData {
   name: string;
   index: number;
+  isBot: boolean;
 }
 
 export interface User extends UserPublicData {

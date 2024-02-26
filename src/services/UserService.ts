@@ -6,10 +6,10 @@ export class UserService {
   private readonly _users: User[] = [];
   private _currentIndex = 1;
 
-  public async registerUser({
-    name,
-    password,
-  }: RegisterUserRequestData): Promise<RegisterUserResponseData> {
+  public async registerUser(
+    { name, password }: RegisterUserRequestData,
+    isBot = false,
+  ): Promise<RegisterUserResponseData> {
     try {
       const userIndex = await this._getUserIndex({ name, password });
 
@@ -17,7 +17,7 @@ export class UserService {
         return this._loginUser(userIndex);
       }
 
-      return this._addUser({ name, password });
+      return this._addUser({ name, password }, isBot);
     } catch (error) {
       return {
         name: name,
@@ -41,11 +41,11 @@ export class UserService {
     return userIndex;
   }
 
-  private async _addUser({
-    name,
-    password,
-  }: RegisterUserRequestData): Promise<RegisterUserResponseData> {
-    const newUser = { name, password, index: this._currentIndex++ };
+  private async _addUser(
+    { name, password }: RegisterUserRequestData,
+    isBot: boolean,
+  ): Promise<RegisterUserResponseData> {
+    const newUser = { name, password, index: this._currentIndex++, isBot };
 
     this._users.push(newUser);
 

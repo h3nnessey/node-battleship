@@ -1,11 +1,12 @@
 import { WebSocketServer } from 'ws';
 import { WebSocketController } from '@/controllers';
+import { WS_SERVER_PORT } from '@/constants';
 
-const wss = new WebSocketServer({ port: 3000 });
+const wss = new WebSocketServer({ port: WS_SERVER_PORT });
 const controller = new WebSocketController();
 
 wss.on('listening', () => {
-  console.log('WS Server is listening on port 3000');
+  console.log(`WS Server is listening on port ${WS_SERVER_PORT}`);
 });
 
 wss.on('connection', async (ws) => {

@@ -91,4 +91,14 @@ export class WebSocketService {
       }
     });
   }
+
+  public async closeBotSocket(sockets: WebSocket[]): Promise<void> {
+    sockets.forEach(async (socket) => {
+      const user = await this.getLinkedUser(socket);
+      if (user.isBot) {
+        await this.unlink(socket);
+        socket.close();
+      }
+    });
+  }
 }

@@ -8,12 +8,12 @@ import {
   AddShipsData,
   AttackData,
   RandomAttackData,
-  ShipTypes,
   TurnData,
-  FinishData,
+  UserPublicData,
 } from '@/types';
-import { getRandomInt } from '@/utils';
 import { RoomService, UserService, WinnerService, WebSocketService, GameService } from '@/services';
+import { BOT_NAME_PREFIX, BOT_PASSWORD, WS_SERVER_URL } from '@/constants';
+import { getRandomInt } from '@/utils';
 
 export class WebSocketController {
   private readonly _userService = new UserService();
@@ -25,8 +25,9 @@ export class WebSocketController {
   private async _registerUser(
     ws: WebSocket,
     { name, password }: RegisterUserRequestData,
+    isBot = false,
   ): Promise<void> {
-    const result = await this._userService.registerUser({ name, password });
+    const result = await this._userService.registerUser({ name, password }, isBot);
 
     await this._webSocketService.notify([[ws, MessageTypes.Reg, result]]);
 
@@ -34,6 +35,7 @@ export class WebSocketController {
       await this._webSocketService.link(ws, {
         name: result.name,
         index: result.index,
+        isBot,
       });
 
       await this._updateRoom();
@@ -195,11 +197,9 @@ export class WebSocketController {
     playerWs2: WebSocket,
     currentPlayer: number,
   ): Promise<void> {
-    const result = await this._gameService.turn(currentPlayer);
-
     await this._webSocketService.notify([
-      [playerWs1, ...result],
-      [playerWs2, ...result],
+      [playerWs1, MessageTypes.Turn, { currentPlayer }],
+      [playerWs2, MessageTypes.Turn, { currentPlayer }],
     ]);
   }
 
@@ -220,34 +220,24 @@ export class WebSocketController {
       [playerWs2, MessageTypes.Finish, { winPlayer: winnerIndex }],
     ]);
 
-    if (player1.name.includes('BOT')) {
-      await this._webSocketService.unlink(playerWs1);
-      playerWs1.close();
-    }
-
-    if (player2.name.includes('BOT')) {
-      await this._webSocketService.unlink(playerWs2);
-      playerWs2.close();
-    }
-
+    await this._webSocketService.closeBotSocket([playerWs1, playerWs2]);
     await this._updateWinners();
   }
 
-  private async turn({ currentPlayer }: TurnData) {
+  private async turn({ currentPlayer }: TurnData): Promise<void> {
     try {
       const game = await this._gameService.getGameDataByUserId(currentPlayer);
 
       if (game) {
         const socket = await this._webSocketService.getLinkedSocketByIndex(currentPlayer);
         const user = await this._webSocketService.getLinkedUser(socket);
-        const isBot = user.name.toLowerCase().includes('bot');
 
-        if (isBot) {
+        if (user.isBot) {
           await new Promise((resolve) => {
             setTimeout(async () => {
               await this._randomAttack({ gameId: game.gameId, indexPlayer: currentPlayer });
               resolve(void 0);
-            }, 1000);
+            }, 500);
           });
         }
       }
@@ -256,41 +246,42 @@ export class WebSocketController {
     }
   }
 
-  private async _singlePlay(ws: WebSocket) {
-    const botWs = new WebSocket('ws://localhost:3000');
-    botWs.onopen = async () => {
-      await this._registerUser(botWs, { name: `BOT_${Date.now()}`, password: 'qqqqq' });
+  private async _createBot(): Promise<UserPublicData> {
+    const ws = new WebSocket(WS_SERVER_URL);
 
-      const user = await this._webSocketService.getLinkedUser(ws);
-      const bot = await this._webSocketService.getLinkedUser(botWs);
+    return new Promise((resolve) => {
+      ws.on('open', async () => {
+        await this._registerUser(
+          ws,
+          { name: BOT_NAME_PREFIX + Date.now(), password: BOT_PASSWORD },
+          true,
+        );
 
-      const room = await this._roomService.createRoom(user);
+        const bot = await this._webSocketService.getLinkedUser(ws);
 
-      await this._roomService.addUserToRoom(room.roomId, bot);
-      await this._createGame(room);
-      await this._updateRoom();
+        resolve(bot);
+      });
+    });
+  }
 
-      const gameData = await this._gameService.getGameDataByUserId(bot.index);
+  private async _singlePlay(ws: WebSocket): Promise<void> {
+    const bot = await this._createBot();
+    const user = await this._webSocketService.getLinkedUser(ws);
+    const room = await this._roomService.createRoom(user);
 
-      if (gameData) {
-        await this._addShips({
-          gameId: gameData.gameId,
-          indexPlayer: bot.index,
-          ships: [
-            { position: { x: 1, y: 3 }, direction: false, type: ShipTypes.Huge, length: 4 },
-            { position: { x: 3, y: 6 }, direction: true, type: ShipTypes.Large, length: 3 },
-            { position: { x: 8, y: 4 }, direction: true, type: ShipTypes.Large, length: 3 },
-            { position: { x: 7, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-            { position: { x: 3, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-            { position: { x: 0, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-            { position: { x: 7, y: 8 }, direction: true, type: ShipTypes.Small, length: 1 },
-            { position: { x: 5, y: 0 }, direction: true, type: ShipTypes.Small, length: 1 },
-            { position: { x: 9, y: 1 }, direction: false, type: ShipTypes.Small, length: 1 },
-            { position: { x: 6, y: 3 }, direction: true, type: ShipTypes.Small, length: 1 },
-          ],
-        });
-      }
-    };
+    await this._roomService.addUserToRoom(room.roomId, bot);
+    await this._createGame(room);
+    await this._updateRoom();
+
+    const gameData = await this._gameService.getGameDataByUserId(bot.index);
+
+    if (gameData) {
+      await this._addShips({
+        gameId: gameData.gameId,
+        indexPlayer: bot.index,
+        ships: this._gameService.getShipsLayout(),
+      });
+    }
   }
 
   public async processMessage(ws: WebSocket, message: string): Promise<void> {
