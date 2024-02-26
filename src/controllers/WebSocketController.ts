@@ -1,4 +1,4 @@
-import { WebSocket, RawData } from 'ws';
+import { WebSocket } from 'ws';
 import {
   RegisterUserRequestData,
   RequestMessages,
@@ -124,10 +124,10 @@ export class WebSocketController {
     await this._turn(playerWs1, playerWs2, nextTurnIndex);
   }
 
-  private async _attack(data: AttackData) {
+  private async _attack(data: AttackData, isRandom = false): Promise<void> {
     if (!data.gameId) return;
 
-    const result = await this._gameService.attack(data);
+    const result = await this._gameService.attack(data, isRandom);
     const oppositeWs = await this._webSocketService.getLinkedSocketByIndex(
       result.players.oppositeIndex,
     );
@@ -194,11 +194,14 @@ export class WebSocketController {
   }
 
   private async _randomAttack(data: RandomAttackData) {
-    await this._attack({
-      ...data,
-      x: getRandomInt(10),
-      y: getRandomInt(10),
-    });
+    await this._attack(
+      {
+        ...data,
+        x: getRandomInt(10),
+        y: getRandomInt(10),
+      },
+      true,
+    );
   }
 
   private async _turn(

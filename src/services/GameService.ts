@@ -13,6 +13,7 @@ import {
   ShipTypes,
   ShipStatuses,
 } from '@/types';
+import { getRandomInt } from '@/utils';
 
 export class GameService {
   private _games = new Map<number, Game>([]);
@@ -85,7 +86,10 @@ export class GameService {
     };
   }
 
-  public async attack({ gameId, indexPlayer, x, y }: AttackData): Promise<AttackResult> {
+  public async attack(
+    { gameId, indexPlayer, x, y }: AttackData,
+    isRandom: boolean,
+  ): Promise<AttackResult> {
     const game = this.getGameById(gameId);
     const oppositePlayer = this.getOppositePlayerInGameByIndex(gameId, indexPlayer);
     const oppositeShip = oppositePlayer.shipsPoints.find((ship) =>
@@ -99,17 +103,31 @@ export class GameService {
     let status: ShipStatuses = ShipStatuses.Miss;
 
     if (game.turnIndex !== indexPlayer) {
-      throw new Error('Not your turn buddy');
+      throw new Error('Not your turn');
     }
 
     game.turnIndex = oppositePlayer.indexPlayer;
 
-    if (isAlreadyRevealed) {
+    if (isAlreadyRevealed && !isRandom) {
       return {
         success: false,
         nextTurnIndex: game.turnIndex,
         players: { oppositeIndex: oppositePlayer.indexPlayer, playerIndex: indexPlayer },
       };
+    }
+
+    if (isAlreadyRevealed && isRandom) {
+      while (true) {
+        const randomPoint = { x: getRandomInt(10), y: getRandomInt(10) };
+
+        if (
+          !revealedPoints.some((point) => point.x === randomPoint.x && point.y === randomPoint.y)
+        ) {
+          game.turnIndex = indexPlayer;
+
+          return this.attack({ gameId, indexPlayer, x: randomPoint.x, y: randomPoint.y }, false);
+        }
+      }
     }
 
     revealedPoints.push({ x, y });
