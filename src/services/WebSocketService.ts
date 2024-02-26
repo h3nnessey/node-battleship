@@ -1,9 +1,15 @@
 import { WebSocket } from 'ws';
 import { getSerializer } from '@/utils';
 import type { UserPublicData, NotifyArgs } from '@/types';
+import { LoggerService } from '@/services';
 
 export class WebSocketService {
-  private readonly _sockets = new Map<WebSocket, UserPublicData | undefined>();
+  private readonly _sockets = new Map<
+    WebSocket,
+    Partial<UserPublicData & { address: string }> | undefined
+  >();
+
+  private readonly _loggerService = new LoggerService();
 
   private static instance: WebSocketService;
 
@@ -15,12 +21,18 @@ export class WebSocketService {
     return WebSocketService.instance;
   }
 
-  public async addSocket(ws: WebSocket): Promise<void> {
-    this._sockets.set(ws, undefined);
+  public async addSocket(ws: WebSocket, address: string): Promise<void> {
+    const socket = this._sockets.get(ws);
+
+    if (socket?.address === address) {
+      return;
+    }
+
+    this._sockets.set(ws, { address });
   }
 
   public async link(ws: WebSocket, user: UserPublicData): Promise<void> {
-    this._sockets.set(ws, user);
+    this._sockets.set(ws, { ...this._sockets.get(ws), ...user });
   }
 
   public async unlink(ws: WebSocket): Promise<void> {
@@ -34,7 +46,9 @@ export class WebSocketService {
       throw new Error('User is not found');
     }
 
-    return user;
+    const data = { name: user.name, index: user.index, isBot: user.isBot } as UserPublicData;
+
+    return data;
   }
 
   public async getLinkedSocketByName(name: string): Promise<WebSocket> {
@@ -76,16 +90,21 @@ export class WebSocketService {
   public async notify(args: NotifyArgs): Promise<void> {
     args.forEach((arg) => {
       const [ws, type, data] = arg;
+      const messageBase = { type, id: 0 };
 
       if (ws.readyState === 1) {
         const dataType = typeof data;
         const serializer = getSerializer(dataType);
+        const user = this._sockets.get(ws);
+
+        if (user?.address) {
+          this._loggerService.logOutgoingMessage(user.address, { ...messageBase, data });
+        }
 
         ws.send(
           JSON.stringify({
-            type,
+            ...messageBase,
             data: serializer(data),
-            id: 0,
           }),
         );
       }

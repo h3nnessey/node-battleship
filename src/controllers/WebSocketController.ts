@@ -1,4 +1,4 @@
-import { WebSocket } from 'ws';
+import { WebSocket, RawData } from 'ws';
 import {
   RegisterUserRequestData,
   RequestMessages,
@@ -12,7 +12,14 @@ import {
   UserPublicData,
   ShipStatuses,
 } from '@/types';
-import { RoomService, UserService, WinnerService, WebSocketService, GameService } from '@/services';
+import {
+  RoomService,
+  UserService,
+  WinnerService,
+  WebSocketService,
+  GameService,
+  LoggerService,
+} from '@/services';
 import { BOT_NAME_PREFIX, BOT_PASSWORD, WS_SERVER_URL } from '@/constants';
 import { getRandomInt } from '@/utils';
 
@@ -22,12 +29,15 @@ export class WebSocketController {
   private readonly _winnerService = new WinnerService();
   private readonly _webSocketService = new WebSocketService();
   private readonly _gameService = new GameService();
+  private readonly _loggerService = new LoggerService();
 
   private async _registerUser(
     ws: WebSocket,
     { name, password }: RegisterUserRequestData,
     isBot = false,
   ): Promise<void> {
+    if (!password) return;
+
     const result = await this._userService.registerUser({ name, password }, isBot);
 
     await this._webSocketService.notify([[ws, MessageTypes.Reg, result]]);
@@ -283,23 +293,25 @@ export class WebSocketController {
     }
   }
 
-  public async processMessage(ws: WebSocket, message: string): Promise<void> {
+  public async processMessage(ws: WebSocket, message: string, address: string): Promise<void> {
     try {
       const method = await this._getMethodFromMessage(ws, message);
-      console.log(message);
+
       if (method) {
+        this._loggerService.logIncomingMessage(address, await this._parseMessage(message));
         await method();
       }
     } catch (error) {
-      console.log(error instanceof Error ? error.message : 'error');
+      this._loggerService.logErrorMessage(address, error);
     }
   }
 
-  public async onConnection(ws: WebSocket): Promise<void> {
-    await this._webSocketService.addSocket(ws);
+  public async onConnection(ws: WebSocket, address: string): Promise<void> {
+    await this._webSocketService.addSocket(ws, address);
+    this._loggerService.logNewConnection(address);
   }
 
-  public async onClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+  public async onClose(ws: WebSocket, address: string): Promise<void> {
     try {
       const user = await this._webSocketService.getLinkedUser(ws);
       const userGame = await this._gameService.getGameDataByUserId(user.index);
@@ -321,13 +333,9 @@ export class WebSocketController {
       await this._roomService.deleteUserRoom(user.name);
       await this._updateRoom();
 
-      console.log(
-        `Connection of ${user.name} closed with code ${code}${reason.length ? ` and reason ${reason}` : ''}`,
-      );
+      this._loggerService.logConnectionClosed(address);
     } catch {
-      console.log(
-        `Connection closed with code ${code}${reason.length ? ` and reason ${reason}` : ''}`,
-      );
+      this._loggerService.logConnectionClosed(address);
     }
   }
 
