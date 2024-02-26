@@ -103,7 +103,7 @@ export class GameService {
     let status: ShipStatuses = ShipStatuses.Miss;
 
     if (game.turnIndex !== indexPlayer) {
-      throw new Error('Not your turn');
+      throw new Error('Invalid turn index');
     }
 
     game.turnIndex = oppositePlayer.indexPlayer;

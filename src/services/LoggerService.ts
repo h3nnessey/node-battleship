@@ -1,3 +1,5 @@
+import { Colors, colorize } from '@/utils';
+
 export class LoggerService {
   private static instance: LoggerService;
 
@@ -10,26 +12,33 @@ export class LoggerService {
   }
 
   public logIncomingMessage(address: string, data: unknown) {
-    this._log(`[INCOMING MESSAGE | ${address}]`, data);
+    const message = colorize(`[INCOMING MESSAGE | ${address}]`, Colors.Green);
+
+    this._log(message, data);
   }
 
   public logErrorMessage(address: string, error: unknown) {
-    this._log(
-      `[ERROR | ${address}]`,
-      error instanceof Error ? error.message : 'Internal Server Error',
-    );
+    const message = colorize(`[ERROR | ${address}]`, Colors.Red);
+
+    this._log(message, error instanceof Error ? error.message : 'Internal Server Error');
   }
 
   public logNewConnection(address: string) {
-    this._log(`[NEW CONNECTION | ${address}]`);
+    const message = colorize(`[NEW CONNECTION | ${address}]`, Colors.Yellow);
+
+    this._log(message);
   }
 
   public logConnectionClosed(address: string) {
-    this._log(`[CONNECTION CLOSED | ${address}]`);
+    const message = colorize(`[CONNECTION CLOSED | ${address}]`, Colors.Cyan);
+
+    this._log(message);
   }
 
   public logOutgoingMessage(address: string, data: unknown) {
-    this._log(`[OUTGOING MESSAGE | ${address}]`, data);
+    const message = colorize(`[OUTGOING MESSAGE | ${address}]`, Colors.Magenta);
+
+    this._log(message, data);
   }
 
   private _log(message: string, ...args: unknown[]) {
