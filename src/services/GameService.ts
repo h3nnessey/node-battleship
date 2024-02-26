@@ -10,9 +10,9 @@ import {
   Player,
   StartGameResult,
   AttackResult,
-  ShipTypes,
   ShipStatuses,
 } from '@/types';
+import { SHIPS } from '@/constants';
 import { getRandomInt } from '@/utils';
 
 export class GameService {
@@ -276,17 +276,6 @@ export class GameService {
   }
 
   public getShipsLayout(): Ship[] {
-    return [
-      { position: { x: 1, y: 3 }, direction: false, type: ShipTypes.Huge, length: 4 },
-      { position: { x: 3, y: 6 }, direction: true, type: ShipTypes.Large, length: 3 },
-      { position: { x: 8, y: 4 }, direction: true, type: ShipTypes.Large, length: 3 },
-      { position: { x: 7, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-      { position: { x: 3, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-      { position: { x: 0, y: 0 }, direction: true, type: ShipTypes.Medium, length: 2 },
-      { position: { x: 7, y: 8 }, direction: true, type: ShipTypes.Small, length: 1 },
-      { position: { x: 5, y: 0 }, direction: true, type: ShipTypes.Small, length: 1 },
-      { position: { x: 9, y: 1 }, direction: false, type: ShipTypes.Small, length: 1 },
-      { position: { x: 6, y: 3 }, direction: true, type: ShipTypes.Small, length: 1 },
-    ];
+    return SHIPS[getRandomInt(SHIPS.length)];
   }
 }
